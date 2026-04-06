@@ -97,7 +97,7 @@ st.markdown("""
 # ── Load Data ─────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    with open(r"C:\Users\Nithara Mendis\Desktop\FYP Investor 360 App\investor360_data.json", "r", encoding="utf-8") as f:
+    with open("investor360_data.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
 data         = load_data()
