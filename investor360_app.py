@@ -821,7 +821,7 @@ elif page == "Broker Comparison":
     fc1, fc2 = st.columns(2)
     with fc1:
         max_inv = int(df_b["min_numeric"].max()) or 1000000
-        dep_filter = st.slider("Maximum Minimum Investment (LKR)", 0, max_inv, max_inv, step=50000)
+        dep_filter = st.slider("Maximum Minimum Investment (LKR)", 0, max_inv, max_inv, step=5000)
     with fc2:
         platforms = ["All"] + sorted(df_b["online_platform"].dropna().unique().tolist())
         plat_filter = st.selectbox("Online Platform", platforms)
