@@ -513,7 +513,7 @@ elif page == "Company Analysis":
         <div class="section-card" style="border-left: 4px solid #0B1D51;">
             <h3 style="margin:0 0 6px 0;">Defensive Investor</h3>
             <p style="color:#5a7199; font-size:0.85rem; margin:0;">
-            Uses <strong>10 years</strong> of data. Strictly evaluates long-term consistency —
+            Uses <strong>10 years</strong> of data. Strictly evaluates long-term consistency -
             earnings, dividends, financial health, and conservative valuation.
             Based on Benjamin Graham's criteria for risk-averse, long-term investors.
             </p>
@@ -523,7 +523,7 @@ elif page == "Company Analysis":
         <div class="section-card" style="border-left: 4px solid #2563eb;">
             <h3 style="margin:0 0 6px 0;">Enterprising Investor</h3>
             <p style="color:#5a7199; font-size:0.85rem; margin:0;">
-            Uses <strong>5 years</strong> of data. More flexible — evaluates financial strength,
+            Uses <strong>5 years</strong> of data. More flexible - evaluates financial strength,
             earnings stability, dividend payments, valuation metrics, and growth.
             Suited for active investors willing to take calculated risks.
             </p>
