@@ -605,15 +605,44 @@ elif page == "Company Analysis":
                 </div>
             </div>""", unsafe_allow_html=True)
 
-            # Key metrics row
-            mk = st.columns(7)
-            mk[0].metric("EPS",              fmt(latest(eps_s), "LKR "))
-            mk[1].metric("Revenue",          fmt_large(latest(rev_s)))
-            mk[2].metric("Dividend/Share",   fmt(latest(div_s), "LKR "))
-            mk[3].metric("Book Value/Share", fmt(latest(bv_s), "LKR "))
-            mk[4].metric("Intangibles",      fmt_large(latest(intang)))
-            mk[5].metric("Current Ratio",    fmt(latest(cr_s)))
-            mk[6].metric("Debt Ratio",       fmt(latest(dr_s)))
+            # Key metrics row (FIXED UI - no overflow)
+            def small_metric(title, value):
+                st.markdown(f"""
+                <div style="
+                background:white;
+                padding:10px;
+                border-radius:10px;
+                border:1px solid #e0e7ef;
+                text-align:center;
+                height:70px;
+                ">
+                <div style="font-size:0.65rem;color:#5a7199;font-weight:600;">
+                {title}
+                </div>
+                <div style="font-size:0.85rem;font-weight:700;color:#0B1D51;">
+                {value}
+                </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    a, b, c = st.columns(3)
+                    with a: small_metric("EPS", fmt(latest(eps_s), "LKR "))
+                    with b: small_metric("Revenue", fmt_large(latest(rev_s)))
+                    with c: small_metric("Dividend", fmt(latest(div_s), "LKR "))
+                
+                with col2:
+                    a, b, c = st.columns(3)
+                    with a: small_metric("Book Value", fmt(latest(bv_s), "LKR "))
+                    with b: small_metric("Intangibles", fmt_large(latest(intang)))
+                    with c: small_metric("Current Ratio", fmt(latest(cr_s)))
+                        
+                with col3:
+                    a, b, c = st.columns(3)
+                    with a: small_metric("Debt Ratio", fmt(latest(dr_s)))
+                    with b: small_metric("Market Price", fmt(latest(mp_s), "LKR "))
+                    with c: small_metric("Intrinsic", fmt(latest(iv_s), "LKR "))
 
             st.markdown("")
             gk = st.columns(4)
