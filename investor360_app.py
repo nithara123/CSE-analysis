@@ -649,7 +649,7 @@ elif page == "Company Analysis":
             with sc_col:
                 render_score_card(total_score, score_type_label)
             with cr_col:
-                st.markdown(f"**Criteria Breakdown — {investor_type}**")
+                st.markdown(f"**Criteria Breakdown - {investor_type}**")
                 render_criteria(criteria)
 
             st.divider()
