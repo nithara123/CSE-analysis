@@ -607,47 +607,40 @@ elif page == "Company Analysis":
             
             # Key metrics row (FIXED UI - no overflow)
             def small_metric(title, value):
-                st.markdown(f"""
-                <div style="
-                  background:white;
-                  padding:10px;
-                  border-radius:10px;
-                  border:1px solid #e0e7ef;
-                  text-align:center;
-                  height:70px;
-                ">
-                  <div style="font-size:0.65rem;color:#5a7199;font-weight:600;">
-                    {title}
-                  </div>
-                  <div style="font-size:0.85rem;font-weight:700;color:#0B1D51;">
-                    {value}
-                  </div>
+              st.markdown(f"""
+              <div style="
+                background:white;
+                padding:10px;
+                border-radius:10px;
+                border:1px solid #e0e7ef;
+                text-align:center;
+                height:70px;
+              ">
+                <div style="font-size:0.65rem;color:#5a7199;font-weight:600;">
+                  {title}
                 </div>
-                """, unsafe_allow_html=True)
-
+                <div style="font-size:0.85rem;font-weight:700;color:#0B1D51;">
+                  {value}
+                </div>
+              </div>
+              """, unsafe_allow_html=True)
+                
             col1, col2, col3 = st.columns(3)
+            
             with col1:
                 small_metric("EPS", fmt(latest(eps_s), "LKR "))
                 small_metric("Revenue", fmt_large(latest(rev_s)))
                 small_metric("Dividend", fmt(latest(div_s), "LKR "))
-                
+                small_metric("Market Price", fmt(latest(mp_s), "LKR "))
             with col2:
                 small_metric("Book Value", fmt(latest(bv_s), "LKR "))
                 small_metric("Intangibles", fmt_large(latest(intang)))
                 small_metric("Current Ratio", fmt(latest(cr_s)))
-                
+                small_metric("Intrinsic Value", fmt(latest(iv_s), "LKR "))
             with col3:
                 small_metric("Debt Ratio", fmt(latest(dr_s)))
-                small_metric("Market Price", fmt(latest(mp_s), "LKR "))
-                small_metric("Intrinsic", fmt(latest(iv_s), "LKR "))
-        
-
-            st.markdown("")
-            gk = st.columns(4)
-            gk[0].metric("Market Price",     fmt(latest(mp_s), "LKR "))
-            gk[1].metric("Intrinsic Value",  fmt(latest(iv_s), "LKR "))
-            gk[2].metric("Margin of Safety", f"{latest(mos_s):.1%}" if latest(mos_s) is not None else "N/A")
-            gk[3].metric("P/E Ratio",        fmt(latest(pe_s)))
+                small_metric("Margin of Safety", f"{latest(mos_s):.1%}" if latest(mos_s) is not None else "N/A")
+                small_metric("P/E Ratio", fmt(latest(pe_s)))
 
             st.divider()
 
