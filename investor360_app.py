@@ -629,12 +629,10 @@ elif page == "Company Analysis":
             
             with col1:
                 small_metric("EPS", fmt(latest(eps_s), "LKR "))
-                small_metric("Revenue", fmt_large(latest(rev_s)))
                 small_metric("Dividend", fmt(latest(div_s), "LKR "))
                 small_metric("Market Price", fmt(latest(mp_s), "LKR "))
             with col2:
                 small_metric("Book Value", fmt(latest(bv_s), "LKR "))
-                small_metric("Intangibles", fmt_large(latest(intang)))
                 small_metric("Current Ratio", fmt(latest(cr_s)))
                 small_metric("Intrinsic Value", fmt(latest(iv_s), "LKR "))
             with col3:
