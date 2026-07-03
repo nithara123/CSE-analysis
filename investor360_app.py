@@ -629,21 +629,30 @@ elif page == "Company Analysis":
                 
                 with col1:
                     a, b, c = st.columns(3)
-                    with a: small_metric("EPS", fmt(latest(eps_s), "LKR "))
-                        with b: small_metric("Revenue", fmt_large(latest(rev_s)))
-                            with c: small_metric("Dividend", fmt(latest(div_s), "LKR "))
+                    with a: 
+                        small_metric("EPS", fmt(latest(eps_s), "LKR "))
+                        with b: 
+                            small_metric("Revenue", fmt_large(latest(rev_s)))
+                            with c: 
+                                small_metric("Dividend", fmt(latest(div_s), "LKR "))
                                 
                 with col2:
                     a, b, c = st.columns(3)
-                    with a: small_metric("Book Value", fmt(latest(bv_s), "LKR "))
-                        with b: small_metric("Intangibles", fmt_large(latest(intang)))
-                            with c: small_metric("Current Ratio", fmt(latest(cr_s)))
+                    with a: 
+                        small_metric("Book Value", fmt(latest(bv_s), "LKR "))
+                        with b: 
+                            small_metric("Intangibles", fmt_large(latest(intang)))
+                            with c: 
+                                small_metric("Current Ratio", fmt(latest(cr_s)))
                                 
                 with col3:
                     a, b, c = st.columns(3)
-                    with a: small_metric("Debt Ratio", fmt(latest(dr_s)))
-                        with b: small_metric("Market Price", fmt(latest(mp_s), "LKR "))
-                            with c: small_metric("Intrinsic", fmt(latest(iv_s), "LKR "))
+                    with a: 
+                        small_metric("Debt Ratio", fmt(latest(dr_s)))
+                        with b: 
+                            small_metric("Market Price", fmt(latest(mp_s), "LKR "))
+                            with c: 
+                                small_metric("Intrinsic", fmt(latest(iv_s), "LKR "))
         
 
             st.markdown("")
