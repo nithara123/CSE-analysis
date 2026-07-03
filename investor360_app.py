@@ -486,7 +486,7 @@ if page == "Home":
     st.divider()
     m1,m2,m3,m4 = st.columns(4)
     m1.metric("Companies Covered","186"); m2.metric("Brokers Profiled","13")
-    m3.metric("Sectors Analysed","21");   m4.metric("Years of Data","2016–2025")
+    m3.metric("Sectors Analysed","21");   m4.metric("Years of Data","2016 - 2025")
     st.divider()
     st.markdown("### What This Platform Offers")
     c1,c2,c3 = st.columns(3)
