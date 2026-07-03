@@ -429,9 +429,9 @@ def score_enterprising(fd):
 
 
 def render_score_card(score, label):
-    if score >= 75:   color, verdict = "#16a34a", "Strong — Meets Criteria"
-    elif score >= 50: color, verdict = "#d97706", "Moderate — Partially Meets Criteria"
-    else:             color, verdict = "#dc2626", "Weak — Does Not Meet Criteria"
+    if score >= 75:   color, verdict = "#16a34a", "Strong - Meets Criteria"
+    elif score >= 50: color, verdict = "#d97706", "Moderate - Partially Meets Criteria"
+    else:             color, verdict = "#dc2626", "Weak - Does Not Meet Criteria"
     st.markdown(f"""
     <div class="score-block">
         <div class="score-num" style="color:{color};">{score}</div>
