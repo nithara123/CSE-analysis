@@ -900,7 +900,7 @@ elif page == "Broker Comparison":
     if "selected_broker" not in st.session_state:
         st.session_state.selected_broker = None
 
-    PER_PAGE = 6
+    PER_PAGE = 9
     total_pages = max(1, -(-len(filtered) // PER_PAGE))
     if "broker_page" not in st.session_state:
         st.session_state.broker_page = 1
