@@ -51,12 +51,6 @@
       "industry": "Finance/Rental/Leasing"
     },
     {
-      "symbol": "AFS",
-      "name": "ALPHA FIRE SERVICES PLC",
-      "sector": "Industrial Services",
-      "industry": "Engineering & Construction"
-    },
-    {
       "symbol": "ALUM",
       "name": "ALUMEX PLC",
       "sector": "Non-Energy Minerals",
@@ -2112,7 +2106,6 @@
       "company_count": 2,
       "companies": [
         "ACCESS ENGINEERING PLC",
-        "ALPHA FIRE SERVICES PLC"
       ],
       "industries": [
         "Engineering & Construction"
@@ -55717,150 +55710,6 @@
           "2018": 1.9048,
           "2017": 1.0656,
           "2016": -0.2183
-        }
-      }
-    },
-    "ALPHA FIRE SERVICES PLC": {
-      "name": "ALPHA FIRE SERVICES PLC",
-      "symbol": "AFS",
-      "sector": "Industrial Services",
-      "industry": "Engineering & Construction",
-      "years": [
-        "2025",
-        "2024",
-        "2023"
-      ],
-      "balance_sheet": {
-        "current_assets": {
-          "2025": 275411798.0,
-          "2024": 202909515.0,
-          "2023": 163755070.0
-        },
-        "current_liabilities": {
-          "2025": 189238018.0,
-          "2024": 146100432.0,
-          "2023": 155261767.0
-        },
-        "long_term_debt": {
-          "2025": 17632558.0,
-          "2024": 14269012.0,
-          "2023": 23643939.0
-        },
-        "net_current_assets": {
-          "2025": 86173780.0,
-          "2024": 56809083.0,
-          "2023": 8493303.0
-        },
-        "book_value": {
-          "2025": 178989202.0,
-          "2024": 145383508.0,
-          "2023": 74385956.0
-        },
-        "intangible_assets": {
-          "2025": 0.0,
-          "2024": 0.0,
-          "2023": 0.0
-        },
-        "tangible_book_value": {
-          "2025": 178989202.0,
-          "2024": 145383508.0,
-          "2023": 74385956.0
-        },
-        "shares_outstanding": {
-          "2025": 37950000.0,
-          "2024": 37950000.0,
-          "2023": 2760000.0
-        }
-      },
-      "income_statement": {
-        "total_revenue": {
-          "2025": 416270509.0,
-          "2024": 326569040.0,
-          "2023": 289663882.0
-        },
-        "net_profit": {
-          "2025": 39298193.0,
-          "2024": 24691652.0,
-          "2023": 38780281.0
-        },
-        "eps": {
-          "2025": 1.04,
-          "2024": 0.65,
-          "2023": 5.07
-        },
-        "dividend_per_share": {
-          "2025": null,
-          "2024": null,
-          "2023": null
-        }
-      },
-      "market_metrics": {
-        "market_price": {
-          "2025": 8.8,
-          "2024": 7.6,
-          "2023": 12.2
-        },
-        "bvps": {
-          "2025": 4.7164,
-          "2024": 3.8309,
-          "2023": 26.9514
-        },
-        "tbvps": {
-          "2025": 4.7164,
-          "2024": 3.8309,
-          "2023": 26.9514
-        },
-        "pe_ratio": {
-          "2025": 8.4615,
-          "2024": 11.6923,
-          "2023": 2.4063
-        },
-        "pb_ratio": {
-          "2025": 1.8658,
-          "2024": 1.9839,
-          "2023": 0.4527
-        }
-      },
-      "ratios": {
-        "current_ratio": {
-          "2025": 1.4554,
-          "2024": 1.3888,
-          "2023": 1.0547
-        },
-        "debt_ratio": {
-          "2025": 0.0602,
-          "2024": 0.0657,
-          "2023": 0.1262
-        }
-      },
-      "graham_analysis": {
-        "eps_3yr_avg": {
-          "2025": null,
-          "2024": null,
-          "2023": 2.2533
-        },
-        "intrinsic_value": {
-          "2025": null,
-          "2024": null,
-          "2023": 33.7995
-        },
-        "margin_of_safety": {
-          "2025": null,
-          "2024": null,
-          "2023": 0.639
-        },
-        "eps_10yr_growth_pct": null
-      },
-      "growth": {
-        "revenue_growth_yoy": {
-          "2025": null,
-          "2024": -0.2155,
-          "2023": -0.113
-        },
-        "eps_growth_yoy": {
-          "2025": null,
-          "2024": -0.375,
-          "2023": 6.8
         }
       }
     },
