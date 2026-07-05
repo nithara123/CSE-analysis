@@ -906,7 +906,7 @@ elif page == "Broker Comparison":
         st.session_state.broker_page = 1
     st.session_state.broker_page = min(st.session_state.broker_page, total_pages)
 
-    grid_col, detail_col = st.columns([2, 1])
+    grid_col, detail_col = st.columns([3, 1])
 
     with grid_col:
         start = (st.session_state.broker_page - 1) * PER_PAGE
