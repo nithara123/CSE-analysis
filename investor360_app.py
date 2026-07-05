@@ -900,13 +900,13 @@ elif page == "Broker Comparison":
     if "selected_broker" not in st.session_state:
         st.session_state.selected_broker = None
 
-    PER_PAGE = 6
+    PER_PAGE = 8
     total_pages = max(1, -(-len(filtered) // PER_PAGE))
     if "broker_page" not in st.session_state:
         st.session_state.broker_page = 1
     st.session_state.broker_page = min(st.session_state.broker_page, total_pages)
 
-    grid_col, detail_col = st.columns([1, 1])
+    grid_col, detail_col = st.columns([1, 2])
 
     with grid_col:
         start = (st.session_state.broker_page - 1) * PER_PAGE
