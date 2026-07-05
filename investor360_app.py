@@ -1,6 +1,7 @@
-import streamlit as st
+ import streamlit as st
 import json
 import random
+import base64
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -91,6 +92,39 @@ st.markdown("""
         text-align:center; color:#94a3b8; font-size:0.78rem;
         padding:24px 0 8px 0; border-top:1px solid #e0e7ef; margin-top:40px;
     }
+
+    /* ── Broker cards ─────────────────────────────────────────────────────── */
+    .broker-card {
+        background:#ffffff; border:1px solid #e0e7ef; border-radius:12px;
+        padding:16px; margin-bottom:10px; text-align:center;
+        box-shadow:0 1px 6px rgba(0,0,0,0.05);
+    }
+    .broker-avatar {
+        width:56px; height:56px; border-radius:50%; object-fit:cover;
+        border:1px solid #e0e7ef; margin:0 auto 10px auto; display:block;
+        background:#ffffff;
+    }
+    .broker-name { font-weight:700; color:#0B1D51; font-size:0.86rem; line-height:1.25;
+                   min-height:42px; display:flex; align-items:center; justify-content:center; }
+    .broker-fee  { color:#5a7199; font-size:0.78rem; margin:4px 0 10px 0; }
+    .broker-contact { color:#5a7199; font-size:0.74rem; text-align:left; margin-top:8px; line-height:1.6; }
+
+    .broker-detail-panel {
+        background:#ffffff; border:1px solid #e0e7ef; border-radius:12px;
+        padding:20px; box-shadow:0 1px 6px rgba(0,0,0,0.05); position:sticky; top:12px;
+    }
+    .broker-badge {
+        display:inline-block; background:#e0e9ff; color:#1a3a85; font-size:0.7rem;
+        font-weight:700; padding:2px 10px; border-radius:14px; margin-top:2px;
+    }
+    .broker-detail-avatar {
+        width:54px; height:54px; border-radius:50%; object-fit:cover;
+        border:1px solid #e0e7ef; float:left; margin-right:12px;
+    }
+    .broker-min-box {
+        background:#dcfce7; color:#166534; border-radius:8px; padding:10px 14px;
+        font-weight:700; font-size:0.9rem; margin-top:6px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -104,6 +138,19 @@ data         = load_data()
 companies    = data.get("companies", {})
 brokers      = data.get("brokers", [])
 sectors      = data.get("sectors", {})
+
+@st.cache_data(show_spinner=False)
+def logo_b64(filename):
+    """Read a logo file from the /logos folder and return a base64 data URI, or None if missing."""
+    if not filename:
+        return None
+    try:
+        with open(f"logos/{filename}", "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+        ext = filename.split(".")[-1].lower()
+        return f"data:image/{ext};base64,{encoded}"
+    except FileNotFoundError:
+        return None
 
 # ── Quotes ────────────────────────────────────────────────────────────────────
 QUOTES = [
@@ -979,6 +1026,7 @@ elif page == "Broker Comparison":
                 xaxis=dict(gridcolor="#e5eaf2",title="LKR"), yaxis=dict(gridcolor="#e5eaf2"),
                 margin=dict(l=10,r=10,t=20,b=10), height=max(300,len(df_inv)*40))
             st.plotly_chart(fig, use_container_width=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTOR ANALYTICS
