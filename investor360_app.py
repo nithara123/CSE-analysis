@@ -570,7 +570,7 @@ elif page == "Company Analysis":
         # Check available years for Defensive Investor
         years_available = available_years(fd)
 
-        if is_defensive and years_available < 10:
+        if is_defensive and years_available < 9:
             st.warning(
               f"""
               ⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
