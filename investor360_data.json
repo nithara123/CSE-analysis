@@ -1630,97 +1630,176 @@
     }
   ],
   "brokers": [
-    {
-      "name": "BARTLEET RELIGARE SECURITIES (PVT) LTD",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "Any Amount",
-      "online_platform": "Atrad",
-      "research_support": "Emails/ Portal"
-    },
-    {
-      "name": "HNB Stockbrokers (Pvt) Ltd",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "100000",
-      "online_platform": "Atrad",
-      "research_support": "Emails/ Whats app"
-    },
-    {
-      "name": "JOHN KEELLS STOCK BROKERS (PVT) LTD.",
-      "brokerage_fee_percent": 0.14,
-      "min_investment_raw": "500000",
-      "online_platform": "DirectFN",
-      "research_support": "Emails/ Whats app"
-    },
-    {
-      "name": "ASHA SECURITIES LIMITED.",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "Any Amount",
-      "online_platform": "Atrad",
-      "research_support": "Emails/ Whats app"
-    },
-    {
-      "name": "ALMAS EQUITIES (PVT.) LTD",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "Any Amount (500,000 sales Advisors)",
-      "online_platform": "Atrad",
-      "research_support": "Whats app/ Emails"
-    },
-    {
-      "name": "SOMERVILLE STOCKBROKERS (PVT) LTD.",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "Any Amount",
-      "online_platform": "Atrad",
-      "research_support": "Based on the requirement"
-    },
-    {
-      "name": "J B SECURITIES (PVT) LTD.",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "1000000",
-      "online_platform": "Own Platform",
-      "research_support": "Whats app/Emails"
-    },
-    {
-      "name": "LANKA SECURITIES (PVT) LTD.",
-      "brokerage_fee_percent": 0.64,
-      "min_investment_raw": "100000",
-      "online_platform": "Atrad",
-      "research_support": "Email/ Whats app/ Advisor"
-    },
-    {
-      "name": "CAPITAL TRUST SECURITIES (PVT) LTD.",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "100000",
-      "online_platform": "Atrad",
-      "research_support": "Email, Whats app"
-    },
-    {
-      "name": "CT SMITH SECURITIES (PVT) LTD",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "50000",
-      "online_platform": "Atrad",
-      "research_support": "Email/ Whats app"
-    },
-    {
-      "name": "FIRST CAPITAL EQUITIES (PVT) LTD.",
-      "brokerage_fee_percent": 1.15,
-      "min_investment_raw": "50000",
-      "online_platform": "Atrad",
-      "research_support": "Email/ Whats app/ Website"
-    },
-    {
-      "name": "NDB SECURITIES (PRIVATE) LTD.",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "50000",
-      "online_platform": "Atrad",
-      "research_support": "Email/ Whats app"
-    },
-    {
-      "name": "ACS CAPITAL (PVT) LTD",
-      "brokerage_fee_percent": 1.12,
-      "min_investment_raw": "Any  Amount",
-      "online_platform": "Atrad",
-      "research_support": "Email/ Whats app"
-    }
+  {
+    "name": "BARTLEET RELIGARE SECURITIES (PVT) LTD",
+    "logo": "BART.png",
+    "address": "Bartleet House Level G, Colombo, Western Province ·",
+    "phone": "+94 115 220 200",
+    "email": "info@bartleetreligare.com",
+    "website": "https://www.bartleetreligare.com",
+    "about": "Bartleet is a company known for its integrity, ethics, and values. We prioritize strong relationships with partners and associates, foster personal growth among employees, and serve the wider community.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "Any Amount",
+    "online_platform": "Atrad",
+    "research_support": "Emails/ Portal"
+  },
+  {
+    "name": "HNB Stockbrokers (Pvt) Ltd",
+    "logo": "HNB.png",
+    "address": "Level 05 No.53 Srimath Anagarika Dharmapala Mawatha,Colombo 00300",
+    "phone": "+94 112 206 206",
+    "email": "sales@hnbstockbrokers.lk",
+    "website": "https://hnbib.lk/",
+    "about": "Evolved from the respected Acuity Partners, HNB Investment Bank (HNBIB) is one of Sri Lankas leading investment banks, offering end-to-end capital market solutions designed to support growth and deliver long-term value. We work closely with individuals, corporates, and institutions, providing tailored financial strategies that evolve with your ambitions, because at HNBIB, we are committed to Empowering your progress.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "100,000",
+    "online_platform": "Atrad",
+    "research_support": "Emails/ Whats app"
+  },
+  {
+    "name": "JOHN KEELLS STOCK BROKERS (PVT) LTD.",
+    "logo": "JOHN.png",
+    "address": "186 Vauxhall St, Colombo 00200",
+    "phone": "+94 (0)11 230 6250",
+    "email": "jkstock@keells.com",
+    "website": "https://www.jksb.com/",
+    "about": "John Keells Stock Brokers (JKSB) is a leading equity brokerage house in Sri Lanka and is a subsidiary of John Keells Holdings PLC (JKH), the largest listed entity on the Colombo Stock Exchange (CSE). We are one of 15 founding members of the Colombo Stock Exchange and our history in equity trading dates back to 1896.",
+    "brokerage_fee_percent": 0.14,
+    "min_investment_raw": "500,000",
+    "online_platform": "DirectFN",
+    "research_support": "Emails/ Whats app"
+  },
+  {
+    "name": "ASHA SECURITIES LIMITED.",
+    "logo": "ASHA.png",
+    "address": "No.60, 5th Lane, Colombo, Western Province 00300",
+    "phone": "(+94) 11 2429 100",
+    "email": "asl@ashasecurities.net",
+    "website": "https://ashasecurities.net",
+    "about": "Asha Securities Limited is a member of the Colombo Stock Exchange and regulated by the Securities and Exchange Commission of Sri Lanka.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "Any Amount",
+    "online_platform": "Atrad",
+    "research_support": "Emails/ Whats app"
+  },
+  {
+    "name": "ALMAS EQUITIES (PVT.) LTD",
+    "logo": "ALMAS.png",
+    "address": "5th Floor Westin Tower, 2 4/1 Lake Dr, Colombo 8",
+    "phone": "+94 707 144 551",
+    "email": "info@almasequities.com",
+    "website": "https://www.almasequities.com/",
+    "about": "Almas Equities, Sri Lanka's leading stock brokerage firm. Offering expert financial services, investment advice, and personalized support to help you achieve your financial goals.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "Any Amount (500,000 sales Advisors)",
+    "online_platform": "Atrad",
+    "research_support": "Whats app/ Emails"
+  },
+  {
+    "name": "SOMERVILLE STOCKBROKERS (PVT) LTD.",
+    "logo": "SOMER.png",
+    "address": "410/95, 1/1, Bauddhaloka Mawatha, Colombo 7.",
+    "phone": "+94 112 692 856 / +94 112 692 857",
+    "email": "contact@somerville.lk",
+    "website": "https://somerville.lk/",
+    "about": "Deemed as one of the better performing bourses in the region, Somervilles competitive edge lies in its highly experienced team of professionals. Having begun trading in 1985, Somervilles cumulative experience spans over a century, delivering opportunities and innovative investment solutions to its clientele.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "Any Amount",
+    "online_platform": "Atrad",
+    "research_support": "Based on the requirement"
+  },
+  {
+    "name": "J B SECURITIES (PVT) LTD.",
+    "logo": "JB.png",
+    "address": "150, St.Joseph's Street, Colombo-14, Sri Lanka",
+    "phone": "+94 11 2490900",
+    "email": "jbs@jb.lk",
+    "website": "https://www.jbs.lk/",
+    "about": "JB Securities is a member of Colombo Stock Exchange, Sri Lanka. We are currently the dedicated stock brokering arm of the Jafferjee Brothers Group. JB Securities has been involved in stock brokering for over 20 years. We are providing comprehensive online services and research. Our staffs are trained to provide a prompt, helpful and efficient service, whether you contact us by telephone, e-mail or letter.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "1,000,000",
+    "online_platform": "Own Platform",
+    "research_support": "Whats app/Emails"
+  },
+  {
+    "name": "LANKA SECURITIES (PVT) LTD.",
+    "logo": "LANKA.png",
+    "address": "3rd Floor, M2M Veranda Offices, #34, W A D Ramanayake Mawatha,Colombo - 02",
+    "phone": "+94 11 4706767",
+    "email": "info@lankasec.com",
+    "website": "https://lankasecurities.com/",
+    "about": "As a Joint Venture Stock broking firm between First Capital Securities Corporation (Pakistan), Bank of Ceylon and Merchant Bank of Sri Lanka, we capitalize on the strengths of our shareholders to provide our clients with a superior solution to all their investment needs.",
+    "brokerage_fee_percent": 0.64,
+    "min_investment_raw": "100,000",
+    "online_platform": "Atrad",
+    "research_support": "Email/ Whats app/ Advisor"
+  },
+  {
+    "name": "CAPITAL TRUST SECURITIES (PVT) LTD.",
+    "logo": "CAPITAL.png",
+    "address": "42, Sir Mohammed Macan Marker Mawatha, Colombo 03, Sri Lanka",
+    "phone": "0112 174 174",
+    "email": "documents@capitaltrust.lk",
+    "website": "https://capitaltrust.lk/",
+    "about": "With the correct leadership and high professionalism displayed by the entire team, the company is constantly looking at newer avenues of development and has thus far proved to be one of the most sought after stock broking companies in the country.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "100,000",
+    "online_platform": "Atrad",
+    "research_support": "Email, Whats app"
+  },
+  {
+    "name": "CT SMITH SECURITIES (PVT) LTD",
+    "logo": "CT.png",
+    "address": "4-14 Majestic City, 10, Station Road, Colombo 4, Sri Lanka",
+    "phone": "+94 11 255 2290",
+    "email": "info@ctsmith.lk",
+    "website": "https://www.ctsmith.lk/",
+    "about": "Our relationships with local and foreign institutional investors gives us the ability to cross large blocks of shares between institutions, wealth managers and high net worth individuals. We also serve retail investors.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "50,000",
+    "online_platform": "Atrad",
+    "research_support": "Email/ Whats app"
+  },
+  {
+    "name": "FIRST CAPITAL EQUITIES (PVT) LTD.",
+    "logo": "FIRST.png",
+    "address": "No: 02, Deal Place, Colombo 00300, Sri Lanka",
+    "phone": "94112651651",
+    "email": "info@firstcapital.lk",
+    "website": "https://firstcapital.lk/",
+    "about": "We help you move from intent to impact, with strategies that stand the test of time.Decades of navigating shifts, cycles and uncertainty, with investment banking services that stand up to your ambition. We dont just advise. We track, refine and take responsibility for every move we make. Consistency matters. We know because we build the relationship that scales with your financial investments, Short-term wins are easy. Sustaining progress is where expertise truly shows pride held from the premiere investment company in Sri Lanka",
+    "brokerage_fee_percent": 1.15,
+    "min_investment_raw": "50,000",
+    "online_platform": "Atrad",
+    "research_support": "Email/ Whats app/ Website"
+  },
+  {
+    "name": "NDB SECURITIES (PRIVATE) LTD.",
+    "logo": "NDB.png",
+    "address": "No: 135, Bauddhaloka Mawatha, Colombo 4, Sri Lanka.",
+    "phone": "+94 (11) 2 131 000",
+    "email": "support@ndbs.lk",
+    "website": "https://ndbs.lk/",
+    "about": "Draw strength from diversity and teamwork to promote the Sri Lankan capital market locally, through the improvement and expansion of the local branch network and globally through attracting and establishing an array of long standing foreign clientele.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "50,000",
+    "online_platform": "Atrad",
+    "research_support": "Email/ Whats app"
+  },
+  {
+    "name": "ACS CAPITAL (PVT) LTD",
+    "logo": "ACS.png",
+    "address": "19/3, Rajakeeya Mawatha, Colombo 00700, Sri Lanka (Entrance through: 44, Premasiri Khemadasa Mawatha, Colombo 07)",
+    "phone": "+94 11789 8302",
+    "email": "info@acscapital.lk",
+    "website": "https://acscapital.lk/",
+    "about": "ACS Capital is a full-service capital markets firm licensed and regulated by the Securities and Exchange Commission of Sri Lanka to operate on the Colombo Stock Exchange. Our firm specialises in equity-focused brokering, providing expert guidance together with research for listed securities on the Colombo Stock Exchange.",
+    "brokerage_fee_percent": 1.12,
+    "min_investment_raw": "Any  Amount",
+    "online_platform": "Atrad",
+    "research_support": "Email/ Whats app"
+  }
+]
   ],
   "sectors": {
     "Finance": {
