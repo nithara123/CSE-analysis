@@ -921,11 +921,11 @@ elif page == "Broker Comparison":
                                    else '<div class="broker-avatar" style="display:flex;align-items:center;justify-content:center;background:#0B1D51;color:white;font-weight:700;">'
                                         f'{b["name"][0]}</div>')
                     st.markdown(f"""
-                    <div class="broker-card" style="font-size:0.50rem;">
+                    <div class="broker-card">
                         {avatar_html}
                         <div class="broker-name">{b['name']}</div>
                         <div class="broker-fee">{fmt(b.get('brokerage_fee_percent'), suffix='%')} Commission</div>
-                        <div class="broker-contact">
+                        <div class="broker-contact" style="font-size:0.75rem;">
                             📞 {b.get('phone') or '—'}<br>
                             ✉️ {b.get('email') or '—'}<br>
                             🌐 {(b.get('website') or '—')[:28]}
