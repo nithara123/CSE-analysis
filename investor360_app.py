@@ -925,7 +925,7 @@ elif page == "Broker Comparison":
                         {avatar_html}
                         <div class="broker-name">{b['name']}</div>
                         <div class="broker-fee">{fmt(b.get('brokerage_fee_percent'), suffix='%')} Commission</div>
-                        <div class="broker-contact" style="font-size:0.30rem;">
+                        <div class="broker-contact" style="font-size:0.60rem;">
                             📞 {b.get('phone') or '—'}<br>
                             ✉️ {b.get('email') or '—'}<br>
                             🌐 {(b.get('website') or '—')[:28]}
