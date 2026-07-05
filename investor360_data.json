@@ -1630,19 +1630,19 @@
     }
   ],
   "brokers": [
-  {
-    "name": "BARTLEET RELIGARE SECURITIES (PVT) LTD",
-    "logo": "BART.png",
-    "address": "Bartleet House Level G, Colombo, Western Province ·",
-    "phone": "+94 115 220 200",
-    "email": "info@bartleetreligare.com",
-    "website": "https://www.bartleetreligare.com",
-    "about": "Bartleet is a company known for its integrity, ethics, and values. We prioritize strong relationships with partners and associates, foster personal growth among employees, and serve the wider community.",
-    "brokerage_fee_percent": 1.12,
-    "min_investment_raw": "Any Amount",
-    "online_platform": "Atrad",
-    "research_support": "Emails/ Portal"
-  },
+    {
+      "name": "BARTLEET RELIGARE SECURITIES (PVT) LTD",
+      "logo": "BART.png",
+      "address": "Bartleet House Level G, Colombo, Western Province ·",
+      "phone": "+94 115 220 200",
+      "email": "info@bartleetreligare.com",
+      "website": "https://www.bartleetreligare.com",
+      "about": "Bartleet is a company known for its integrity, ethics, and values. We prioritize strong relationships with partners and associates, foster personal growth among employees, and serve the wider community.",
+      "brokerage_fee_percent": 1.12,
+      "min_investment_raw": "Any Amount",
+      "online_platform": "Atrad",
+      "research_support": "Emails/ Portal"
+    },
   {
     "name": "HNB Stockbrokers (Pvt) Ltd",
     "logo": "HNB.png",
