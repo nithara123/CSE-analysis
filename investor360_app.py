@@ -571,18 +571,15 @@ elif page == "Company Analysis":
     years_available = available_years(fd)
 
     if is_defensive and years_available < 10:
-          st.warning(
-             f"""
-⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
-
-Only **{years_available} years** of financial data are available.
-
-Defensive Investing requires **10 years** of historical financial data.
-
-Please switch to **Enterprising Investor**, which is designed for companies with shorter financial histories.
+        st.warning(
+            f"""
+            ⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
+            Only **{years_available} years** of financial data are available.
+            Defensive Investing requires **10 years** of historical financial data.
+            Please switch to **Enterprising Investor**, which is designed for companies with shorter financial histories.
             """
-          )
-          continue
+        )
+        continue
         
         # Run selected scoring engine
         if is_defensive:
