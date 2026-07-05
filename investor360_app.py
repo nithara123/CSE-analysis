@@ -96,30 +96,39 @@ st.markdown("""
     /* ── Broker cards ─────────────────────────────────────────────────────── */
     .broker-card {
         background:#ffffff; border:1px solid #e0e7ef; border-radius:12px;
-        padding:16px; margin-bottom:10px; text-align:center;
-        box-shadow:0 1px 6px rgba(0,0,0,0.05);
+        padding:14px; margin-bottom:10px; text-align:left;
+        box-shadow:0 1px 6px rgba(0,0,0,0.05); height:100%;
+        display:flex; flex-direction:column;
+    }
+    .broker-card.selected {
+        border:2px solid #E11D48; box-shadow:0 2px 10px rgba(225,29,72,0.12);
+    }
+    .broker-card-header {
+        display:flex; align-items:center; gap:10px; margin-bottom:10px;
     }
     .broker-avatar {
-        width:56px; height:56px; border-radius:50%; object-fit:cover;
-        border:1px solid #e0e7ef; margin:0 auto 10px auto; display:block;
-        background:#ffffff;
+        width:48px; height:48px; min-width:48px; border-radius:10px; object-fit:contain;
+        border:1px solid #e0e7ef; background:#ffffff; padding:4px; flex-shrink:0;
     }
-    .broker-name { font-weight:700; color:#0B1D51; font-size:0.86rem; line-height:1.25;
-                   min-height:42px; display:flex; align-items:center; justify-content:center; }
-    .broker-fee  { color:#5a7199; font-size:0.78rem; margin:4px 0 10px 0; }
-    .broker-contact { color:#5a7199; font-size:0.74rem; text-align:left; margin-top:8px; line-height:1.6; }
+    .broker-name { font-weight:700; color:#0B1D51; font-size:0.84rem; line-height:1.25; }
+    .broker-fee  { color:#5a7199; font-size:0.76rem; margin:0 0 10px 0; }
+    .broker-contact { color:#5a7199; font-size:0.74rem; text-align:left; margin-top:2px;
+                       line-height:1.7; flex-grow:1; }
 
     .broker-detail-panel {
         background:#ffffff; border:1px solid #e0e7ef; border-radius:12px;
         padding:20px; box-shadow:0 1px 6px rgba(0,0,0,0.05); position:sticky; top:12px;
+    }
+    .broker-detail-header {
+        display:flex; align-items:center; gap:12px;
     }
     .broker-badge {
         display:inline-block; background:#e0e9ff; color:#1a3a85; font-size:0.7rem;
         font-weight:700; padding:2px 10px; border-radius:14px; margin-top:2px;
     }
     .broker-detail-avatar {
-        width:54px; height:54px; border-radius:50%; object-fit:cover;
-        border:1px solid #e0e7ef; float:left; margin-right:12px;
+        width:54px; height:54px; min-width:54px; border-radius:10px; object-fit:contain;
+        border:1px solid #e0e7ef; background:#ffffff; padding:5px;
     }
     .broker-min-box {
         background:#dcfce7; color:#166534; border-radius:8px; padding:10px 14px;
@@ -920,10 +929,14 @@ elif page == "Broker Comparison":
                     avatar_html = (f'<img class="broker-avatar" src="{logo_uri}">' if logo_uri
                                    else '<div class="broker-avatar" style="display:flex;align-items:center;justify-content:center;background:#0B1D51;color:white;font-weight:700;">'
                                         f'{b["name"][0]}</div>')
+                    is_sel = st.session_state.selected_broker == b["name"]
+                    card_class = "broker-card selected" if is_sel else "broker-card"
                     st.markdown(f"""
-                    <div class="broker-card">
-                        {avatar_html}
-                        <div class="broker-name">{b['name']}</div>
+                    <div class="{card_class}">
+                        <div class="broker-card-header">
+                            {avatar_html}
+                            <div class="broker-name">{b['name']}</div>
+                        </div>
                         <div class="broker-fee">{fmt(b.get('brokerage_fee_percent'), suffix='%')} Commission</div>
                         <div class="broker-contact">
                             📞 {b.get('phone') or '—'}<br>
@@ -966,7 +979,7 @@ elif page == "Broker Comparison":
                                 f'{sel["name"][0]}</div>')
             st.markdown(f"""
             <div class="broker-detail-panel">
-                <div style="overflow:auto;">
+                <div class="broker-detail-header">
                     {avatar_html}
                     <div>
                         <div style="font-weight:700;color:#0B1D51;font-size:1rem;">{sel['name']}</div>
