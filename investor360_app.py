@@ -912,9 +912,9 @@ elif page == "Broker Comparison":
         start = (st.session_state.broker_page - 1) * PER_PAGE
         page_rows = filtered.iloc[start:start + PER_PAGE].to_dict("records")
 
-        for row_start in range(0, len(page_rows), 4):
-            cols = st.columns(4)
-            for col, b in zip(cols, page_rows[row_start:row_start + 4]):
+        for row_start in range(0, len(page_rows), 3):
+            cols = st.columns(3)
+            for col, b in zip(cols, page_rows[row_start:row_start + 3]):
                 with col:
                     logo_uri = logo_b64(b.get("logo"))
                     avatar_html = (f'<img class="broker-avatar" src="{logo_uri}">' if logo_uri
