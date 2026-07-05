@@ -163,7 +163,12 @@ def fmt_large(val):
         if abs(val) >= 1e3: return f"LKR {val/1e3:,.1f}K"
         return f"LKR {val:,.0f}"
     except: return "N/A"
-
+        
+def available_years(fd):
+    """Returns how many years of data the company has."""
+    years = fd.get("years", [])
+    return len(years)
+    
 C = ["#0B1D51","#2563eb","#16a34a","#d97706","#9333ea"]
 
 def line_chart(series_dict, title, y_label):
@@ -562,7 +567,23 @@ elif page == "Company Analysis":
         if not fd:
             st.error(f"No data found for: {company_name}")
             continue
+    # Check available years for Defensive Investor
+    years_available = available_years(fd)
 
+    if is_defensive and years_available < 10:
+          st.warning(
+             f"""
+⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
+
+Only **{years_available} years** of financial data are available.
+
+Defensive Investing requires **10 years** of historical financial data.
+
+Please switch to **Enterprising Investor**, which is designed for companies with shorter financial histories.
+            """
+          )
+          continue
+        
         # Run selected scoring engine
         if is_defensive:
             total_score, criteria = score_defensive(fd)
