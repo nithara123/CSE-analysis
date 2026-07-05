@@ -849,16 +849,114 @@ elif page == "Broker Comparison":
     st.markdown(f"**{len(filtered)} broker(s) match your filters.**")
     st.divider()
 
-    col_map = {"name":"Broker","brokerage_fee_percent":"Fee %","min_investment_raw":"Min Investment",
-               "online_platform":"Platform","research_support":"Research Support"}
-    show_cols = [c for c in col_map if c in filtered.columns]
-    df_show = filtered[show_cols].copy(); df_show.columns = [col_map[c] for c in show_cols]
-    st.dataframe(df_show.reset_index(drop=True), use_container_width=True)
+    # ── Card grid + detail panel ───────────────────────────────────────────────
+    if "selected_broker" not in st.session_state:
+        st.session_state.selected_broker = None
+
+    PER_PAGE = 8
+    total_pages = max(1, -(-len(filtered) // PER_PAGE))
+    if "broker_page" not in st.session_state:
+        st.session_state.broker_page = 1
+    st.session_state.broker_page = min(st.session_state.broker_page, total_pages)
+
+    grid_col, detail_col = st.columns([2, 1])
+
+    with grid_col:
+        start = (st.session_state.broker_page - 1) * PER_PAGE
+        page_rows = filtered.iloc[start:start + PER_PAGE].to_dict("records")
+
+        for row_start in range(0, len(page_rows), 4):
+            cols = st.columns(4)
+            for col, b in zip(cols, page_rows[row_start:row_start + 4]):
+                with col:
+                    logo_uri = logo_b64(b.get("logo"))
+                    avatar_html = (f'<img class="broker-avatar" src="{logo_uri}">' if logo_uri
+                                   else '<div class="broker-avatar" style="display:flex;align-items:center;justify-content:center;background:#0B1D51;color:white;font-weight:700;">'
+                                        f'{b["name"][0]}</div>')
+                    st.markdown(f"""
+                    <div class="broker-card">
+                        {avatar_html}
+                        <div class="broker-name">{b['name']}</div>
+                        <div class="broker-fee">{fmt(b.get('brokerage_fee_percent'), suffix='%')} Commission</div>
+                        <div class="broker-contact">
+                            📞 {b.get('phone') or '—'}<br>
+                            ✉️ {b.get('email') or '—'}<br>
+                            🌐 {(b.get('website') or '—')[:28]}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("View Details", key=f"view_{b['name']}", use_container_width=True):
+                        st.session_state.selected_broker = b["name"]
+                        st.rerun()
+
+        st.write("")
+        pg1, pg2, pg3 = st.columns([1, 2, 1])
+        with pg1:
+            if st.button("◀ Prev", disabled=st.session_state.broker_page <= 1, use_container_width=True):
+                st.session_state.broker_page -= 1
+                st.rerun()
+        with pg2:
+            st.markdown(f"<div style='text-align:center;color:#5a7199;padding-top:6px;'>Page {st.session_state.broker_page} of {total_pages}</div>", unsafe_allow_html=True)
+        with pg3:
+            if st.button("Next ▶", disabled=st.session_state.broker_page >= total_pages, use_container_width=True):
+                st.session_state.broker_page += 1
+                st.rerun()
+
+    with detail_col:
+        sel_name = st.session_state.selected_broker
+        sel = next((b for b in brokers if b["name"] == sel_name), None) if sel_name else None
+
+        if sel is None:
+            st.markdown("""
+            <div class="broker-detail-panel" style="text-align:center; color:#5a7199;">
+                <div style="font-size:2rem;">👈</div>
+                Click <strong>View Details</strong> on any broker card to see their full profile here.
+            </div>""", unsafe_allow_html=True)
+        else:
+            logo_uri = logo_b64(sel.get("logo"))
+            avatar_html = (f'<img class="broker-detail-avatar" src="{logo_uri}">' if logo_uri
+                           else '<div class="broker-detail-avatar" style="display:flex;align-items:center;justify-content:center;background:#0B1D51;color:white;font-weight:700;">'
+                                f'{sel["name"][0]}</div>')
+            st.markdown(f"""
+            <div class="broker-detail-panel">
+                <div style="overflow:auto;">
+                    {avatar_html}
+                    <div>
+                        <div style="font-weight:700;color:#0B1D51;font-size:1rem;">{sel['name']}</div>
+                        <span class="broker-badge">CSE Registered Broker</span>
+                    </div>
+                </div>
+                <div style="margin-top:14px; font-size:0.82rem; color:#5a7199; line-height:1.9;">
+                    📞 {sel.get('phone') or '—'}<br>
+                    ✉️ {sel.get('email') or '—'}<br>
+                    🌐 {sel.get('website') or '—'}<br>
+                    📍 {sel.get('address') or '—'}
+                </div>
+                <hr style="border-color:#e0e7ef;">
+                <div style="font-weight:700;color:#0B1D51;font-size:0.88rem;margin-bottom:6px;">About the Broker</div>
+                <div style="font-size:0.82rem;color:#5a7199;line-height:1.6;">{sel.get('about') or 'No description available.'}</div>
+                <hr style="border-color:#e0e7ef;">
+                <div style="font-weight:700;color:#0B1D51;font-size:0.88rem;margin-bottom:6px;">Commission &amp; Platform</div>
+                <div style="font-size:0.82rem;color:#5a7199;line-height:1.9;">
+                    Brokerage Fee: <strong style="color:#0B1D51;">{fmt(sel.get('brokerage_fee_percent'), suffix='%')}</strong><br>
+                    Online Platform: <strong style="color:#0B1D51;">{sel.get('online_platform') or '—'}</strong><br>
+                    Research Support: <strong style="color:#0B1D51;">{sel.get('research_support') or '—'}</strong>
+                </div>
+                <div style="font-weight:700;color:#0B1D51;font-size:0.88rem;margin-top:14px;">Minimum Investment</div>
+                <div class="broker-min-box">{sel.get('min_investment_raw') or 'N/A'}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("✕ Close", use_container_width=True):
+                st.session_state.selected_broker = None
+                st.rerun()
+
     st.divider()
 
+    # ── Analytics charts (fee & minimum investment comparison) ────────────────
+    st.markdown("### Fee &amp; Investment Analytics")
     ch1, ch2 = st.columns(2)
     with ch1:
-        st.markdown("### Brokerage Fee (%)")
+        st.markdown("#### Brokerage Fee (%)")
         df_fee = filtered.dropna(subset=["brokerage_fee_percent"]).sort_values("brokerage_fee_percent")
         min_fee = df_fee["brokerage_fee_percent"].min()
         colors_fee = ["#16a34a" if v==min_fee else "#0B1D51" for v in df_fee["brokerage_fee_percent"]]
@@ -871,7 +969,7 @@ elif page == "Broker Comparison":
         st.plotly_chart(fig, use_container_width=True)
         st.caption("Green = lowest fee.")
     with ch2:
-        st.markdown("### Minimum Investment (LKR)")
+        st.markdown("#### Minimum Investment (LKR)")
         df_inv = filtered[filtered["min_numeric"]>0].sort_values("min_numeric")
         if not df_inv.empty:
             fig = go.Figure(go.Bar(x=df_inv["min_numeric"], y=df_inv["name"], orientation="h",
@@ -881,7 +979,6 @@ elif page == "Broker Comparison":
                 xaxis=dict(gridcolor="#e5eaf2",title="LKR"), yaxis=dict(gridcolor="#e5eaf2"),
                 margin=dict(l=10,r=10,t=20,b=10), height=max(300,len(df_inv)*40))
             st.plotly_chart(fig, use_container_width=True)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTOR ANALYTICS
