@@ -1799,7 +1799,7 @@
     "online_platform": "Atrad",
     "research_support": "Email/ Whats app"
   }
-],
+  ],
   "sectors": {
     "Finance": {
       "company_count": 44,
@@ -2183,7 +2183,7 @@
     "Industrial Services": {
       "company_count": 2,
       "companies": [
-        "ACCESS ENGINEERING PLC",
+        "ACCESS ENGINEERING PLC"
       ],
       "industries": [
         "Engineering & Construction"
