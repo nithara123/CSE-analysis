@@ -956,7 +956,7 @@ elif page == "Broker Comparison":
         if sel is None:
             st.markdown("""
             <div class="broker-detail-panel" style="text-align:center; color:#5a7199;">
-                <div style="font-size:2rem;">👈</div>
+                <div style="font-size:2rem;"></div>
                 Click <strong>View Details</strong> on any broker card to see their full profile here.
             </div>""", unsafe_allow_html=True)
         else:
