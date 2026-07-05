@@ -567,17 +567,17 @@ elif page == "Company Analysis":
         if not fd:
             st.error(f"No data found for: {company_name}")
             continue
-    # Check available years for Defensive Investor
-    years_available = available_years(fd)
+        # Check available years for Defensive Investor
+        years_available = available_years(fd)
 
         if is_defensive and years_available < 10:
             st.warning(
               f"""
-            ⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
-            Only **{years_available} years** of financial data are available.
-            Defensive Investing requires **10 years** of historical financial data.
-            Please switch to **Enterprising Investor**, which is designed for companies with shorter financial histories.
-            """
+              ⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
+              Only **{years_available} years** of financial data are available.
+              Defensive Investing requires **10 years** of historical financial data.
+              Please switch to **Enterprising Investor**, which is designed for companies with shorter financial histories.
+              """
             )
             continue
         
