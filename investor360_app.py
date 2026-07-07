@@ -4,6 +4,7 @@ import random
 import base64
 import pandas as pd
 import plotly.graph_objects as go
+from cse_price_chart import render_price_movement_section
 
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
 
@@ -669,6 +670,12 @@ elif page == "Company Analysis":
                     &nbsp;|&nbsp; <span style="font-style:italic;">{data_note}</span>
                 </div>
             </div>""", unsafe_allow_html=True)
+            render_price_movement_section(
+                fd.get("symbol"),
+                company_name
+            )
+            
+            st.divider()
             
             # Key metrics row (FIXED UI - no overflow)
             def small_metric(title, value):
