@@ -31,6 +31,18 @@ HEADERS = {
     "Referer": "https://www.cse.lk/",
 }
 
+# CSE doesn't publish what its internal "period" codes mean for
+# companyChartDataByStock. These are best-guess mappings based on testing
+# (period=3 was observed to return ~20 trading days, i.e. ~1 month).
+# Check the "Range Covered" metric in the rendered chart to verify/adjust.
+RANGE_OPTIONS = {
+    "1M": 3,
+    "3M": 4,
+    "6M": 5,
+    "1Y": 6,
+    "Max": 7,
+}
+
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def _resolve_full_symbol(short_symbol: str):
@@ -201,18 +213,21 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
     return daily, trail
 
 
-def render_price_movement_section(symbol: str, display_name: str = "", period: int = 4):
+def render_price_movement_section(symbol: str, display_name: str = "", period: int = None):
     """
     Streamlit component: renders a candlestick chart of daily price
     movements for the given CSE company. `symbol` can be either a short
     symbol (e.g. "SPEN") or a full CSE symbol (e.g. "SPEN.N0000") — the
     correct share class (.N0000 / .X0000) is resolved automatically.
 
-    period: CSE's internal range code. Not officially documented — based on
-    testing, higher numbers = longer range. period=3 returned ~20 trading
-    days (~1 month); period=4 is a reasonable starting guess for ~3 months.
-    If the date range shown doesn't match what you want, try adjusting
-    this up or down and check the "Range" metric below the chart title.
+    period: optionally force a specific CSE range code, skipping the
+    dropdown selector. Leave as None (default) to let the user pick a
+    range interactively via a dropdown (1M/3M/6M/1Y/Max).
+
+    CSE doesn't publish what these range codes mean, so the mapping below
+    (RANGE_OPTIONS) is a best guess based on testing — the "Range Covered"
+    metric shown under the chart lets you verify what each one actually
+    returns and adjust RANGE_OPTIONS below if needed.
 
     Call this above your financials section for the selected company.
     """
@@ -221,6 +236,15 @@ def render_price_movement_section(symbol: str, display_name: str = "", period: i
     if not symbol:
         st.info("No ticker symbol available for this company.")
         return
+
+    if period is None:
+        range_choice = st.select_slider(
+            "Range",
+            options=list(RANGE_OPTIONS.keys()),
+            value="3M",
+            key=f"range_{symbol}",
+        )
+        period = RANGE_OPTIONS[range_choice]
 
     with st.spinner(f"Fetching price history for {symbol}..."):
         df, trail = fetch_daily_price_history(symbol, period=period)
