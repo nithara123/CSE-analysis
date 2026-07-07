@@ -253,9 +253,8 @@ def render_news_card(item, companies_dict):
 # ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 def render_market_intelligence(companies):
     """Main entry point — call this from app.py inside the page router."""
-    st.markdown("## 📰 Market Intelligence")
-    st.caption("Live headlines from Sri Lankan and international sources, auto-tagged by sector, "
-               "company, sentiment, and importance. Refreshes every 15 minutes.")
+    st.markdown("Market Intelligence")
+    st.caption("Live headlines from Sri Lankan and international sources")
 
     tab_sl, tab_global = st.tabs(["Local Updates", "International Updates"])
 
