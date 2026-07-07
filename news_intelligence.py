@@ -13,7 +13,7 @@ Drop this file next to app.py and cse_price_chart.py, then:
     elif page == "Market Intelligence":
         render_market_intelligence(companies)
 
-Requires: feedparser  ->  pip install feedparser
+Requires: feedparser, requests, plotly  ->  pip install feedparser requests plotly
 """
 
 import re
@@ -21,7 +21,9 @@ import time
 from datetime import datetime, timedelta
 
 import feedparser
+import requests
 import streamlit as st
+import plotly.graph_objects as go
 
 # ── RSS SOURCES ───────────────────────────────────────────────────────────────
 # Every feed below is a free, publicly documented RSS endpoint (no API key,
@@ -103,6 +105,38 @@ TIME_WINDOWS = {
     "All Available":  None,
 }
 
+# ── MACRO DATA CONFIG (World Bank Open Data — free, no API key) ─────────────
+# Sri Lanka plus its key trading/investment partners and the world's major
+# economies, so the world map has good coverage without hammering the API.
+MACRO_COUNTRIES = {
+    "Sri Lanka": "LKA", "India": "IND", "China": "CHN", "United States": "USA",
+    "United Kingdom": "GBR", "Japan": "JPN", "Singapore": "SGP", "Germany": "DEU",
+    "France": "FRA", "Italy": "ITA", "Netherlands": "NLD", "Switzerland": "CHE",
+    "United Arab Emirates": "ARE", "Saudi Arabia": "SAU", "Qatar": "QAT",
+    "South Korea": "KOR", "Australia": "AUS", "Canada": "CAN", "Brazil": "BRA",
+    "Russia": "RUS", "South Africa": "ZAF", "Turkey": "TUR", "Egypt": "EGY",
+    "Nigeria": "NGA", "Kenya": "KEN", "Malaysia": "MYS", "Indonesia": "IDN",
+    "Thailand": "THA", "Vietnam": "VNM", "Bangladesh": "BGD", "Pakistan": "PAK",
+    "Nepal": "NPL", "Maldives": "MDV", "Philippines": "PHL", "Hong Kong": "HKG",
+    "Mexico": "MEX", "Argentina": "ARG", "New Zealand": "NZL",
+}
+
+# label -> (World Bank indicator code, unit suffix, whether "higher" is bad)
+# higher_is_bad: True = red at high values, False = green at high values,
+# None = neutral (context-dependent, no good/bad color coding)
+MACRO_INDICATORS = {
+    "Inflation Rate (CPI, % YoY)":     {"code": "FP.CPI.TOTL.ZG",  "suffix": "%", "higher_is_bad": True},
+    "Lending Interest Rate (%)":       {"code": "FR.INR.LEND",     "suffix": "%", "higher_is_bad": None},
+    "Real Interest Rate (%)":          {"code": "FR.INR.RINR",     "suffix": "%", "higher_is_bad": None},
+    "GDP Growth (Annual %)":           {"code": "NY.GDP.MKTP.KD.ZG", "suffix": "%", "higher_is_bad": False},
+    "Unemployment Rate (%)":           {"code": "SL.UEM.TOTL.ZS",  "suffix": "%", "higher_is_bad": True},
+    "Exchange Rate (LCU per US$)":     {"code": "PA.NUS.FCRF",     "suffix": "",  "higher_is_bad": None},
+}
+
+DEFAULT_COMPARE_COUNTRIES = [
+    "Sri Lanka", "United States", "India", "China", "United Kingdom", "Japan", "Singapore",
+]
+
 
 # ── FETCHING ──────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=900, show_spinner=False)
@@ -141,6 +175,99 @@ def fetch_region(region_feeds_tuple):
         all_items.extend(fetch_feed(source_name, url))
     all_items.sort(key=lambda x: x["published"] or datetime.min, reverse=True)
     return all_items
+
+
+# ── MACRO DATA FETCHING (World Bank Open Data API) ───────────────────────────
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_worldbank_latest(indicator_code, iso3_codes):
+    """Fetch the latest available value of one indicator for a batch of countries
+    in a single request. iso3_codes must be a tuple (hashable, for caching).
+    Returns {iso3: {"value":.., "year":.., "country":..}}. Never raises —
+    a failed/unreachable request just returns an empty dict."""
+    codes_str = ";".join(iso3_codes)
+    url = (f"https://api.worldbank.org/v2/country/{codes_str}/indicator/"
+           f"{indicator_code}?format=json&per_page=300&mrnev=1")
+    try:
+        resp = requests.get(url, timeout=8)
+        resp.raise_for_status()
+        payload = resp.json()
+        if not isinstance(payload, list) or len(payload) < 2 or not payload[1]:
+            return {}
+        out = {}
+        for row in payload[1]:
+            iso3 = row.get("countryiso3code")
+            val = row.get("value")
+            if iso3 and val is not None:
+                out[iso3] = {
+                    "value": val,
+                    "year": row.get("date"),
+                    "country": (row.get("country") or {}).get("value", iso3),
+                }
+        return out
+    except Exception:
+        return {}
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_worldbank_series(iso3_code, indicator_code, start_year=2012, end_year=None):
+    """Fetch a multi-year time series for one country/indicator. Returns
+    {year:int -> value}, skipping years with no reported data."""
+    if end_year is None:
+        end_year = datetime.now().year
+    url = (f"https://api.worldbank.org/v2/country/{iso3_code}/indicator/"
+           f"{indicator_code}?format=json&date={start_year}:{end_year}&per_page=100")
+    try:
+        resp = requests.get(url, timeout=8)
+        resp.raise_for_status()
+        payload = resp.json()
+        if not isinstance(payload, list) or len(payload) < 2 or not payload[1]:
+            return {}
+        series = {}
+        for row in payload[1]:
+            val = row.get("value")
+            yr = row.get("date")
+            if val is not None and yr:
+                series[int(yr)] = val
+        return series
+    except Exception:
+        return {}
+
+
+def fmt_macro(val, suffix="", dec=2):
+    if val is None:
+        return "N/A"
+    try:
+        return f"{val:,.{dec}f}{suffix}"
+    except Exception:
+        return "N/A"
+
+
+def macro_colorscale(higher_is_bad):
+    """Green/red direction depends on whether a high value is good or bad news."""
+    if higher_is_bad is True:
+        return "RdYlGn_r"   # low = green, high = red
+    elif higher_is_bad is False:
+        return "RdYlGn"     # low = red, high = green
+    return "Blues"          # neutral / context-dependent metric
+
+
+def macro_line_chart(series_dict, title, y_label):
+    """Self-contained line chart for the macro dashboard (mirrors app.py's
+    line_chart helper so this module doesn't need to import from app.py)."""
+    colors = ["#0B1D51", "#2563eb", "#16a34a", "#d97706", "#9333ea"]
+    fig = go.Figure()
+    for i, (label, series) in enumerate(series_dict.items()):
+        xs = sorted(series.keys())
+        fig.add_trace(go.Scatter(
+            x=xs, y=[series[x] for x in xs], mode="lines+markers", name=label,
+            line=dict(color=colors[i % len(colors)], width=2.5), marker=dict(size=6)))
+    fig.update_layout(
+        title=dict(text=title, font=dict(color="#0B1D51", size=13), x=0),
+        paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
+        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2", title=y_label),
+        legend=dict(bgcolor="rgba(0,0,0,0)"),
+        margin=dict(l=10, r=10, t=40, b=10), height=280)
+    return fig
 
 
 # ── CLASSIFICATION HELPERS ───────────────────────────────────────────────────
@@ -250,13 +377,144 @@ def render_news_card(item, companies_dict):
     """, unsafe_allow_html=True)
 
 
+# ── MACRO DASHBOARD ───────────────────────────────────────────────────────────
+def render_macro_dashboard():
+    """Interest rates, inflation, GDP growth, unemployment and FX — sourced live
+    from the World Bank Open Data API. Free, no API key, updates daily via cache."""
+    st.markdown("#### 🌐 Macro Indicators — Rates, Inflation &amp; Growth")
+    st.caption("Sourced from the World Bank Open Data API. These are official annual statistics, not "
+               "real-time feeds — most countries report with a 6–18 month lag, so use this for "
+               "directional context (is the environment getting better or worse) rather than a live ticker.")
+
+    # ── Sri Lanka snapshot row ────────────────────────────────────────────────
+    st.markdown("##### 🇱🇰 Sri Lanka Snapshot")
+    snap_cols = st.columns(len(MACRO_INDICATORS))
+    for col, (label, meta) in zip(snap_cols, MACRO_INDICATORS.items()):
+        sl_map = fetch_worldbank_latest(meta["code"], ("LKA",))
+        sl_info = sl_map.get("LKA", {})
+        sl_val, sl_year = sl_info.get("value"), sl_info.get("year", "—")
+        with col:
+            st.markdown(f"""
+            <div style="background:#ffffff;border:1px solid #e0e7ef;border-radius:10px;
+                        padding:12px 8px;text-align:center;height:92px;">
+                <div style="font-size:0.64rem;color:#5a7199;font-weight:600;line-height:1.2;">{label}</div>
+                <div style="font-size:1.05rem;font-weight:800;color:#0B1D51;margin-top:6px;">
+                    {fmt_macro(sl_val, meta['suffix'])}
+                </div>
+                <div style="font-size:0.62rem;color:#94a3b8;">as of {sl_year}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Indicator picker + world map ──────────────────────────────────────────
+    m1, m2 = st.columns([1.4, 2.6])
+    with m1:
+        indicator_label = st.selectbox("Indicator to map", list(MACRO_INDICATORS.keys()), key="macro_indicator")
+    ind = MACRO_INDICATORS[indicator_label]
+
+    with st.spinner("Fetching World Bank data..."):
+        data_map = fetch_worldbank_latest(ind["code"], tuple(MACRO_COUNTRIES.values()))
+
+    st.markdown(f"##### 🗺️ World Map — {indicator_label}")
+    if not data_map:
+        st.info("World Bank data is temporarily unreachable for this indicator. Try again shortly.")
+    else:
+        locs  = list(data_map.keys())
+        vals  = [data_map[l]["value"] for l in locs]
+        names = [f"{data_map[l]['country']} ({data_map[l]['year']})" for l in locs]
+        fig_map = go.Figure(go.Choropleth(
+            locations=locs, z=vals, locationmode="ISO-3", text=names,
+            colorscale=macro_colorscale(ind["higher_is_bad"]),
+            colorbar=dict(title=ind["suffix"] or "value", thickness=14),
+            marker_line_color="#ffffff", marker_line_width=0.5,
+            hovertemplate="%{text}<br>" + indicator_label + ": %{z:.2f}<extra></extra>",
+        ))
+        fig_map.update_layout(
+            geo=dict(showframe=False, showcoastlines=True, projection_type="natural earth",
+                     bgcolor="rgba(0,0,0,0)", landcolor="#eef2f7", lakecolor="#F8F9FB",
+                     coastlinecolor="#c8d3e0"),
+            paper_bgcolor="#ffffff", margin=dict(l=0, r=0, t=6, b=0), height=430,
+        )
+        st.plotly_chart(fig_map, use_container_width=True)
+        st.caption(f"Latest reported value per country · Source: World Bank ({ind['code']}) · "
+                   f"Countries shown: {len(locs)}/{len(MACRO_COUNTRIES)} (some may not report every indicator).")
+
+    st.divider()
+
+    # ── Country comparison bars ───────────────────────────────────────────────
+    st.markdown(f"##### 📊 Country Comparison — {indicator_label}")
+    compare_countries = st.multiselect(
+        "Countries to compare", list(MACRO_COUNTRIES.keys()),
+        default=[c for c in DEFAULT_COMPARE_COUNTRIES if c in MACRO_COUNTRIES],
+        key="macro_compare",
+    )
+    if compare_countries:
+        if data_map:
+            rows = []
+            for cname in compare_countries:
+                iso3 = MACRO_COUNTRIES[cname]
+                v = data_map.get(iso3, {}).get("value")
+                if v is not None:
+                    rows.append((cname, v))
+            rows.sort(key=lambda r: r[1])
+            if rows:
+                bar_colors = ["#dc2626" if name == "Sri Lanka" else "#0B1D51" for name, _ in rows]
+                fig_bar = go.Figure(go.Bar(
+                    x=[r[1] for r in rows], y=[r[0] for r in rows], orientation="h",
+                    marker_color=bar_colors,
+                    text=[f"{r[1]:.2f}{ind['suffix']}" for r in rows],
+                    textposition="outside", textfont=dict(color="#5a7199", size=10),
+                ))
+                fig_bar.update_layout(
+                    paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
+                    xaxis=dict(gridcolor="#e5eaf2", title=indicator_label), yaxis=dict(gridcolor="#e5eaf2"),
+                    margin=dict(l=10, r=10, t=20, b=10), height=max(280, len(rows) * 42),
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+                st.caption("🇱🇰 Sri Lanka is highlighted in red for quick reference.")
+            else:
+                st.info("No data available for the selected countries and indicator.")
+    else:
+        st.caption("Pick one or more countries above to compare against Sri Lanka.")
+
+    st.divider()
+
+    # ── Sri Lanka historical trend ────────────────────────────────────────────
+    st.markdown("##### 📈 Sri Lanka — 12-Year Trend")
+    t1, t2 = st.columns(2)
+    with t1:
+        infl_series = fetch_worldbank_series("LKA", MACRO_INDICATORS["Inflation Rate (CPI, % YoY)"]["code"])
+        if infl_series:
+            st.plotly_chart(macro_line_chart({"Inflation % (YoY)": infl_series},
+                             "Sri Lanka — Inflation Trend", "%"), use_container_width=True)
+        else:
+            st.info("Inflation trend data unavailable.")
+    with t2:
+        rate_series = fetch_worldbank_series("LKA", MACRO_INDICATORS["Lending Interest Rate (%)"]["code"])
+        if rate_series:
+            st.plotly_chart(macro_line_chart({"Lending Rate %": rate_series},
+                             "Sri Lanka — Lending Interest Rate", "%"), use_container_width=True)
+        else:
+            st.info("Interest rate trend data unavailable.")
+
+    st.info(
+        "💡 **Using this for exports:** if a covered company sells mainly into a specific market "
+        "(e.g. the US or an EU country), watch that country's inflation and interest-rate trend above — "
+        "it drives demand and currency effects on Sri Lankan exports. Bilateral tariff schedules aren't "
+        "available from a free public API, so for tariff-specific exposure check the Sri Lanka Export "
+        "Development Board (srilankabusiness.com) or the destination country's customs authority directly."
+    )
+
+
 # ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 def render_market_intelligence(companies):
     """Main entry point — call this from app.py inside the page router."""
-    st.markdown("Market Intelligence")
-    st.caption("Live headlines from Sri Lankan and international sources")
+    st.markdown("## 📰 Market Intelligence")
+    st.caption("Live headlines from Sri Lankan and international sources, auto-tagged by sector, "
+               "company, sentiment, and importance, plus a macro dashboard for rates, inflation, and "
+               "growth. News refreshes every 15 minutes; macro data refreshes daily.")
 
-    tab_sl, tab_global = st.tabs(["Local Updates", "International Updates"])
+    tab_sl, tab_global, tab_macro = st.tabs(["🇱🇰 Sri Lanka", "🌍 Global", "🌐 Macro & Rates"])
 
     # ── Sri Lanka tab ─────────────────────────────────────────────────────────
     with tab_sl:
@@ -299,6 +557,10 @@ def render_market_intelligence(companies):
             st.info("No articles found for the selected filters, or the RSS sources are temporarily unreachable.")
         for item in items_g[:40]:
             render_news_card(item, companies)
+
+    # ── Macro & Rates tab ─────────────────────────────────────────────────────
+    with tab_macro:
+        render_macro_dashboard()
 
 
 def _apply_filters(items, window_label, sector_filter, search_q):
