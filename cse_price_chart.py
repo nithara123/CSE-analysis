@@ -234,6 +234,10 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
             st.json(trail)
         return
 
+    st.caption(f"Fetched {len(full_df)} total trading days from CSE for this symbol.")
+    with st.expander("Debug details (raw fetch info)"):
+        st.json(trail)
+
     months_back = st.slider(
         "Months to show", min_value=1, max_value=6, value=3, step=1,
         key=f"months_{symbol}",
@@ -256,12 +260,15 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
     change_arrow = "▲" if change >= 0 else "▼"
 
     def _small_metric(label, value, sub=None, sub_color="#5a7199"):
-        sub_html = f'<div style="font-size:0.72rem;color:{sub_color};margin-top:2px;">{sub}</div>' if sub else ""
+        sub_html = f'<div style="font-size:0.68rem;color:{sub_color};margin-top:3px;line-height:1.2;">{sub}</div>' if sub else ""
         st.markdown(f"""
-        <div style="background:white;padding:10px;border-radius:10px;
-                    border:1px solid #e0e7ef;text-align:center;height:68px;">
-            <div style="font-size:0.65rem;color:#5a7199;font-weight:600;">{label}</div>
-            <div style="font-size:0.95rem;font-weight:700;color:#0B1D51;white-space:nowrap;">{value}</div>
+        <div style="background:white;padding:10px 8px;border-radius:10px;
+                    border:1px solid #e0e7ef;text-align:center;
+                    min-height:74px;box-sizing:border-box;
+                    display:flex;flex-direction:column;justify-content:center;
+                    overflow:hidden;">
+            <div style="font-size:0.65rem;color:#5a7199;font-weight:600;line-height:1.2;">{label}</div>
+            <div style="font-size:0.9rem;font-weight:700;color:#0B1D51;white-space:nowrap;line-height:1.3;margin-top:2px;">{value}</div>
             {sub_html}
         </div>
         """, unsafe_allow_html=True)
@@ -289,7 +296,7 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
         )
     )
     fig.update_layout(
-        title=dict(text=f"{display_name or short_symbol} — Daily Price Movement",
+        title=dict(text=f"{display_name or symbol} — Daily Price Movement",
                     font=dict(color="#0B1D51", size=13), x=0),
         xaxis_rangeslider_visible=False,
         paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB",
