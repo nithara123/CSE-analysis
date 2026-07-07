@@ -39,7 +39,7 @@
       "industry": "Hotels/Resorts/Cruise lines"
     },
     {
-      "symbol": "SPEN.N0000",
+      "symbol": "SPEN",
       "name": "AITKEN SPENCE PLC",
       "sector": "Consumer Services",
       "industry": "Hotels/Resorts/Cruise lines"
@@ -56356,7 +56356,7 @@
     },
     "AITKEN SPENCE PLC": {
       "name": "AITKEN SPENCE PLC",
-      "symbol": "SPEN.N0000",
+      "symbol": "SPEN",
       "sector": "Consumer Services",
       "industry": "Hotels/Resorts/Cruise lines",
       "years": [
