@@ -384,13 +384,13 @@ def render_news_card(item, companies_dict):
 def render_macro_dashboard():
     """Interest rates, inflation, GDP growth, unemployment and FX — sourced live
     from the World Bank Open Data API. Free, no API key, updates daily via cache."""
-    st.markdown("#### 🌐 Macro Indicators — Rates, Inflation &amp; Growth")
+    st.markdown("Macro Indicators")
     st.caption("Sourced from the World Bank Open Data API. These are official annual statistics, not "
-               "real-time feeds — most countries report with a 6–18 month lag, so use this for "
+               "real-time feeds most countries report with a 6–18 month lag, so use this for "
                "directional context (is the environment getting better or worse) rather than a live ticker.")
 
     # ── Sri Lanka snapshot row ────────────────────────────────────────────────
-    st.markdown("##### 🇱🇰 Sri Lanka Snapshot")
+    st.markdown("Sri Lanka Snapshot")
     snap_cols = st.columns(len(MACRO_INDICATORS))
     for col, (label, meta) in zip(snap_cols, MACRO_INDICATORS.items()):
         sl_map = fetch_worldbank_latest(meta["code"], ("LKA",))
@@ -418,7 +418,7 @@ def render_macro_dashboard():
     with st.spinner("Fetching World Bank data..."):
         data_map = fetch_worldbank_latest(ind["code"], tuple(MACRO_COUNTRIES.values()))
 
-    st.markdown(f"##### 🗺️ World Map — {indicator_label}")
+    st.markdown(f"World Map - {indicator_label}")
     if not data_map:
         st.info("World Bank data is temporarily unreachable for this indicator. Try again shortly.")
     else:
@@ -445,7 +445,7 @@ def render_macro_dashboard():
     st.divider()
 
     # ── Country comparison bars ───────────────────────────────────────────────
-    st.markdown(f"##### 📊 Country Comparison — {indicator_label}")
+    st.markdown(f"Country Comparison - {indicator_label}")
     compare_countries = st.multiselect(
         "Countries to compare", list(MACRO_COUNTRIES.keys()),
         default=[c for c in DEFAULT_COMPARE_COUNTRIES if c in MACRO_COUNTRIES],
@@ -483,7 +483,7 @@ def render_macro_dashboard():
     st.divider()
 
     # ── Sri Lanka historical trend ────────────────────────────────────────────
-    st.markdown("##### 📈 Sri Lanka — 12-Year Trend")
+    st.markdown("Sri Lanka - 12-Year Trend")
     t1, t2 = st.columns(2)
     with t1:
         infl_series = fetch_worldbank_series("LKA", MACRO_INDICATORS["Inflation Rate (CPI, % YoY)"]["code"])
@@ -512,12 +512,12 @@ def render_macro_dashboard():
 # ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 def render_market_intelligence(companies):
     """Main entry point — call this from app.py inside the page router."""
-    st.markdown("## 📰 Market Intelligence")
+    st.markdown("Market Intelligence")
     st.caption("Live headlines from Sri Lankan and international sources, auto-tagged by sector, "
                "company, sentiment, and importance, plus a macro dashboard for rates, inflation, and "
                "growth. News refreshes every 15 minutes; macro data refreshes daily.")
 
-    tab_sl, tab_global, tab_macro = st.tabs(["🇱🇰 Sri Lanka", "🌍 Global", "🌐 Macro & Rates"])
+    tab_sl, tab_global, tab_macro = st.tabs(["Local Updates", "International Updates", "Macro & Rates"])
 
     # ── Sri Lanka tab ─────────────────────────────────────────────────────────
     with tab_sl:
