@@ -163,7 +163,14 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
 
     trail.append(chart_debug)
 
-    chart_points = (raw.get("reqTradeSummery") or {}).get("chartData", [])
+    # CSE's response shape has varied in the wild — handle both:
+    #   {"chartData": [...]}                     (seen in practice)
+    #   {"reqTradeSummery": {"chartData": [...]}} (seen in some docs)
+    if isinstance(raw, dict) and "chartData" in raw:
+        chart_points = raw.get("chartData", [])
+    else:
+        chart_points = (raw.get("reqTradeSummery") or {}).get("chartData", [])
+
     if not chart_points:
         return pd.DataFrame(), trail
 
