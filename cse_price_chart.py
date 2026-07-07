@@ -316,7 +316,7 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
         )
     )
     fig.update_layout(
-        title=dict(text=f"{display_name or symbol} — Daily Price Movement",
+        title=dict(text=f"{display_name or symbol} - Daily Price Movement",
                     font=dict(color="#0B1D51", size=13), x=0),
         xaxis_rangeslider_visible=False,
         paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB",
