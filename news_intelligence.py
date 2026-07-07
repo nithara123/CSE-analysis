@@ -396,11 +396,11 @@ def render_macro_dashboard():
             st.markdown(f"""
             <div style="background:#ffffff;border:1px solid #e0e7ef;border-radius:10px;
                         padding:12px 8px;text-align:center;height:92px;">
-                <div style="font-size:0.64rem;color:#5a7199;font-weight:600;line-height:1.2;">{label}</div>
-                <div style="font-size:1.05rem;font-weight:800;color:#0B1D51;margin-top:6px;">
+                <div style="font-size:0.60rem;color:#5a7199;font-weight:600;line-height:1.2;">{label}</div>
+                <div style="font-size:0.90rem;font-weight:800;color:#0B1D51;margin-top:6px;">
                     {fmt_macro(sl_val, meta['suffix'])}
                 </div>
-                <div style="font-size:0.62rem;color:#94a3b8;">as of {sl_year}</div>
+                <div style="font-size:0.60rem;color:#94a3b8;">as of {sl_year}</div>
             </div>""", unsafe_allow_html=True)
 
     st.divider()
@@ -485,20 +485,20 @@ def render_macro_dashboard():
         infl_series = fetch_worldbank_series("LKA", MACRO_INDICATORS["Inflation Rate (CPI, % YoY)"]["code"])
         if infl_series:
             st.plotly_chart(macro_line_chart({"Inflation % (YoY)": infl_series},
-                             "Sri Lanka — Inflation Trend", "%"), use_container_width=True)
+                             "Sri Lanka - Inflation Trend", "%"), use_container_width=True)
         else:
             st.info("Inflation trend data unavailable.")
     with t2:
         rate_series = fetch_worldbank_series("LKA", MACRO_INDICATORS["Lending Interest Rate (%)"]["code"])
         if rate_series:
             st.plotly_chart(macro_line_chart({"Lending Rate %": rate_series},
-                             "Sri Lanka — Lending Interest Rate", "%"), use_container_width=True)
+                             "Sri Lanka - Lending Interest Rate", "%"), use_container_width=True)
         else:
             st.info("Interest rate trend data unavailable.")
 
     st.info(
         "💡 **Using this for exports:** if a covered company sells mainly into a specific market "
-        "(e.g. the US or an EU country), watch that country's inflation and interest-rate trend above — "
+        "(e.g. the US or an EU country), watch that country's inflation and interest-rate trend above "
         "it drives demand and currency effects on Sri Lankan exports. Bilateral tariff schedules aren't "
         "available from a free public API, so for tariff-specific exposure check the Sri Lanka Export "
         "Development Board (srilankabusiness.com) or the destination country's customs authority directly."
@@ -507,11 +507,8 @@ def render_macro_dashboard():
 
 # ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 def render_market_intelligence(companies):
-    """Main entry point — call this from app.py inside the page router."""
+    """Main entry point - call this from app.py inside the page router."""
     st.markdown("Market Intelligence")
-    st.caption("Live headlines from Sri Lankan and international sources, auto-tagged by sector, "
-               "company, sentiment, and importance, plus a macro dashboard for rates, inflation, and "
-               "growth. News refreshes every 15 minutes; macro data refreshes daily.")
 
     tab_sl, tab_global, tab_macro = st.tabs(["Local Updates", "International Updates", "Macro & Rates"])
 
