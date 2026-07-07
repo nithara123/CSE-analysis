@@ -268,11 +268,14 @@ def render_price_movement_section(symbol: str, display_name: str = "", period: i
     last_date = df["Date"].max()
     span_days = (last_date - first_date).days
 
+    # Compact date format that fits in a metric box, e.g. "12 May – 07 Jul"
+    date_range_label = f"{first_date.strftime('%d %b')} – {last_date.strftime('%d %b')}"
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Last Close", f"{latest['Close']:.2f}", f"{pct:.2f}%")
     c2.metric("Day High", f"{latest['High']:.2f}")
     c3.metric("Day Low", f"{latest['Low']:.2f}")
-    c4.metric("Range Covered", f"{first_date} → {last_date}", f"~{span_days} calendar days")
+    c4.metric("Range", date_range_label, f"{span_days}d")
 
     fig = go.Figure(
         go.Candlestick(
