@@ -497,10 +497,10 @@ def render_macro_dashboard():
 
     st.info(
         "💡 **Using this for exports:** if a covered company sells mainly into a specific market "
-        "(e.g. the US or an EU country), watch that country's inflation and interest-rate trend above "
-        "it drives demand and currency effects on Sri Lankan exports. Bilateral tariff schedules aren't "
-        "available from a free public API, so for tariff-specific exposure check the Sri Lanka Export "
-        "Development Board (srilankabusiness.com) or the destination country's customs authority directly."
+        "watch that country's inflation and interest-rate trend above it drives demand and currency "
+        "effects on Sri Lankan exports. Bilateral tariff schedules aren't available from a free public API,"
+        "so for tariff-specific exposure check the Sri Lanka Export Development Board or the destination"
+        "country's customs authority directly."
     )
 
 
