@@ -31,18 +31,6 @@ HEADERS = {
     "Referer": "https://www.cse.lk/",
 }
 
-# CSE doesn't publish what its internal "period" codes mean for
-# companyChartDataByStock. These are best-guess mappings based on testing
-# (period=3 was observed to return ~20 trading days, i.e. ~1 month).
-# Check the "Range Covered" metric in the rendered chart to verify/adjust.
-RANGE_OPTIONS = {
-    "1M": 3,
-    "3M": 4,
-    "6M": 5,
-    "1Y": 6,
-    "Max": 7,
-}
-
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def _resolve_full_symbol(short_symbol: str):
@@ -213,21 +201,17 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
     return daily, trail
 
 
-def render_price_movement_section(symbol: str, display_name: str = "", period: int = None):
+def render_price_movement_section(symbol: str, display_name: str = ""):
     """
     Streamlit component: renders a candlestick chart of daily price
     movements for the given CSE company. `symbol` can be either a short
     symbol (e.g. "SPEN") or a full CSE symbol (e.g. "SPEN.N0000") — the
     correct share class (.N0000 / .X0000) is resolved automatically.
 
-    period: optionally force a specific CSE range code, skipping the
-    dropdown selector. Leave as None (default) to let the user pick a
-    range interactively via a dropdown (1M/3M/6M/1Y/Max).
-
-    CSE doesn't publish what these range codes mean, so the mapping below
-    (RANGE_OPTIONS) is a best guess based on testing — the "Range Covered"
-    metric shown under the chart lets you verify what each one actually
-    returns and adjust RANGE_OPTIONS below if needed.
+    Fetches a fixed ~1-year window from CSE once (period=6, confirmed via
+    testing to return ~363 calendar days), then lets the user slide through
+    1-6 months of that data client-side — avoiding any dependence on CSE's
+    undocumented period codes for fine-grained ranges.
 
     Call this above your financials section for the selected company.
     """
@@ -237,19 +221,10 @@ def render_price_movement_section(symbol: str, display_name: str = "", period: i
         st.info("No ticker symbol available for this company.")
         return
 
-    if period is None:
-        range_choice = st.select_slider(
-            "Range",
-            options=list(RANGE_OPTIONS.keys()),
-            value="3M",
-            key=f"range_{symbol}",
-        )
-        period = RANGE_OPTIONS[range_choice]
-
     with st.spinner(f"Fetching price history for {symbol}..."):
-        df, trail = fetch_daily_price_history(symbol, period=period)
+        full_df, trail = fetch_daily_price_history(symbol, period=6)
 
-    if df.empty:
+    if full_df.empty:
         st.warning(
             f"Couldn't fetch price movement data for **{symbol}** right now. "
             "The CSE data endpoint may be temporarily unavailable, or this "
@@ -259,6 +234,16 @@ def render_price_movement_section(symbol: str, display_name: str = "", period: i
             st.json(trail)
         return
 
+    months_back = st.slider(
+        "Months to show", min_value=1, max_value=6, value=3, step=1,
+        key=f"months_{symbol}",
+    )
+    cutoff = (pd.Timestamp(full_df["Date"].max()) - pd.DateOffset(months=months_back)).date()
+    df = full_df[full_df["Date"] >= cutoff].reset_index(drop=True)
+
+    if df.empty:
+        df = full_df
+
     latest = df.iloc[-1]
     prev = df.iloc[-2] if len(df) > 1 else latest
     change = latest["Close"] - prev["Close"]
@@ -266,16 +251,31 @@ def render_price_movement_section(symbol: str, display_name: str = "", period: i
 
     first_date = df["Date"].min()
     last_date = df["Date"].max()
-    span_days = (last_date - first_date).days
+    date_range_label = f"{first_date.strftime('%d %b')} – {last_date.strftime('%d %b %Y')}"
+    change_color = "#16a34a" if change >= 0 else "#dc2626"
+    change_arrow = "▲" if change >= 0 else "▼"
 
-    # Compact date format that fits in a metric box, e.g. "12 May – 07 Jul"
-    date_range_label = f"{first_date.strftime('%d %b')} – {last_date.strftime('%d %b')}"
+    def _small_metric(label, value, sub=None, sub_color="#5a7199"):
+        sub_html = f'<div style="font-size:0.72rem;color:{sub_color};margin-top:2px;">{sub}</div>' if sub else ""
+        st.markdown(f"""
+        <div style="background:white;padding:10px;border-radius:10px;
+                    border:1px solid #e0e7ef;text-align:center;height:68px;">
+            <div style="font-size:0.65rem;color:#5a7199;font-weight:600;">{label}</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#0B1D51;white-space:nowrap;">{value}</div>
+            {sub_html}
+        </div>
+        """, unsafe_allow_html=True)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Last Close", f"{latest['Close']:.2f}", f"{pct:.2f}%")
-    c2.metric("Day High", f"{latest['High']:.2f}")
-    c3.metric("Day Low", f"{latest['Low']:.2f}")
-    c4.metric("Range", date_range_label, f"{span_days}d")
+    with c1:
+        _small_metric("Last Close", f"{latest['Close']:.2f}",
+                       f"{change_arrow} {pct:.2f}%", change_color)
+    with c2:
+        _small_metric("Day High", f"{latest['High']:.2f}")
+    with c3:
+        _small_metric("Day Low", f"{latest['Low']:.2f}")
+    with c4:
+        _small_metric("Range", date_range_label, f"{len(df)} days")
 
     fig = go.Figure(
         go.Candlestick(
