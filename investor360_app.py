@@ -132,7 +132,7 @@ st.markdown("""
 # ── Load Data ─────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    with open("investor360_data (3).json", "r", encoding="utf-8") as f:
+    with open("investor360_data (3) (1).json", "r", encoding="utf-8") as f:
         return json.load(f)
 
 data         = load_data()
