@@ -518,7 +518,7 @@ with st.sidebar:
     st.divider()
     page = st.radio("", [
         "Home", "Company Analysis", "Broker Comparison",
-        "Sector Analytics", "Educational Portal",
+        "Sector Analytics", "Market Intelligence", "Educational Portal",
     ], label_visibility="collapsed")
     st.divider()
     st.markdown(f"""
@@ -1110,8 +1110,11 @@ elif page == "Sector Analytics":
 
     with tab5:
         st.dataframe(df_sec.reset_index(drop=True),use_container_width=True)
-
-
+# ══════════════════════════════════════════════════════════════════════════════
+# Market Intel
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Market Intelligence":
+    render_market_intelligence(companies)
 # ══════════════════════════════════════════════════════════════════════════════
 # EDUCATIONAL PORTAL
 # ══════════════════════════════════════════════════════════════════════════════
