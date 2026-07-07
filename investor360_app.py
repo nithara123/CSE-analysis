@@ -5,6 +5,7 @@ import base64
 import pandas as pd
 import plotly.graph_objects as go
 from cse_price_chart import render_price_movement_section
+from news_intelligence import render_market_intelligence
 
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
 
