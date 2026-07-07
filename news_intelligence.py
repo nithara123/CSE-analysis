@@ -257,7 +257,7 @@ def render_market_intelligence(companies):
     st.caption("Live headlines from Sri Lankan and international sources, auto-tagged by sector, "
                "company, sentiment, and importance. Refreshes every 15 minutes.")
 
-    tab_sl, tab_global = st.tabs(["🇱🇰 Sri Lanka", "🌍 Global"])
+    tab_sl, tab_global = st.tabs(["Local Updates", "International Updates"])
 
     # ── Sri Lanka tab ─────────────────────────────────────────────────────────
     with tab_sl:
