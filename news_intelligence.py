@@ -384,10 +384,6 @@ def render_news_card(item, companies_dict):
 def render_macro_dashboard():
     """Interest rates, inflation, GDP growth, unemployment and FX — sourced live
     from the World Bank Open Data API. Free, no API key, updates daily via cache."""
-    st.markdown("Macro Indicators")
-    st.caption("Sourced from the World Bank Open Data API. These are official annual statistics, not "
-               "real-time feeds most countries report with a 6–18 month lag, so use this for "
-               "directional context (is the environment getting better or worse) rather than a live ticker.")
 
     # ── Sri Lanka snapshot row ────────────────────────────────────────────────
     st.markdown("Sri Lanka Snapshot")
