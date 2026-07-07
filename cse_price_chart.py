@@ -33,18 +33,24 @@ HEADERS = {
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _fetch_symbol_map() -> dict:
+def _fetch_symbol_map():
     """
     Build a map of {short_symbol: full_cse_symbol} e.g. {"DIAL": "DIAL.N0000"}
     by pulling CSE's full daily share price list once and matching on the
     prefix before the first dot.
+
+    Returns (mapping_dict, debug_info_dict).
     """
+    debug = {"step": "todaySharePrice", "status_code": None, "error": None, "raw_sample": None}
     try:
         resp = requests.post(BASE_URL + "todaySharePrice", headers=HEADERS, timeout=15)
+        debug["status_code"] = resp.status_code
         resp.raise_for_status()
         rows = resp.json()
+        debug["raw_sample"] = rows[:3] if isinstance(rows, list) else rows
     except Exception as e:
-        return {}
+        debug["error"] = f"{type(e).__name__}: {e}"
+        return {}, debug
 
     mapping = {}
     if isinstance(rows, list):
@@ -53,7 +59,8 @@ def _fetch_symbol_map() -> dict:
             if full_symbol and "." in full_symbol:
                 short = full_symbol.split(".")[0]
                 mapping[short] = full_symbol
-    return mapping
+    debug["mapping_count"] = len(mapping)
+    return mapping, debug
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -62,7 +69,10 @@ def _resolve_stock_id(full_symbol: str):
     Given a full CSE symbol (e.g. 'DIAL.N0000'), fetch companyInfoSummery
     to get the numeric id CSE uses internally for chart requests, if present.
     Falls back to the symbol string itself if no numeric id is found.
+
+    Returns (stock_id_or_None, debug_info_dict).
     """
+    debug = {"step": "companyInfoSummery", "status_code": None, "error": None, "raw": None}
     try:
         resp = requests.post(
             BASE_URL + "companyInfoSummery",
@@ -70,21 +80,23 @@ def _resolve_stock_id(full_symbol: str):
             headers=HEADERS,
             timeout=15,
         )
+        debug["status_code"] = resp.status_code
         resp.raise_for_status()
         info = resp.json()
-    except Exception:
-        return None
+        debug["raw"] = info
+    except Exception as e:
+        debug["error"] = f"{type(e).__name__}: {e}"
+        return None, debug
 
     # Try common places an id might show up in the response.
     for section in ("reqSymbolInfo", "reqLogo"):
         block = info.get(section, {})
         if isinstance(block, dict) and "id" in block:
-            return block["id"]
-    return None
+            return block["id"], debug
+    return None, debug
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
-def fetch_daily_price_history(short_symbol: str, period: int = 3) -> pd.DataFrame:
+def fetch_daily_price_history(short_symbol: str, period: int = 3):
     """
     Fetch and return a daily OHLC DataFrame for a CSE company.
 
@@ -93,16 +105,23 @@ def fetch_daily_price_history(short_symbol: str, period: int = 3) -> pd.DataFram
             Meaning isn't publicly documented — try 1/2/3/4/5 if the
             returned range looks too short or too long for your needs.
 
-    Returns a DataFrame with columns: Date, Open, High, Low, Close
-    (empty DataFrame if nothing could be fetched).
+    Returns (DataFrame, debug_trail_list). DataFrame has columns:
+    Date, Open, High, Low, Close (empty DataFrame if nothing could be fetched).
     """
-    symbol_map = _fetch_symbol_map()
+    trail = []
+
+    symbol_map, map_debug = _fetch_symbol_map()
+    trail.append(map_debug)
+
     full_symbol = symbol_map.get(short_symbol.upper())
+    trail.append({"step": "symbol_lookup", "short_symbol": short_symbol,
+                  "resolved_full_symbol": full_symbol})
 
     if not full_symbol:
-        return pd.DataFrame()
+        return pd.DataFrame(), trail
 
-    stock_id = _resolve_stock_id(full_symbol)
+    stock_id, id_debug = _resolve_stock_id(full_symbol)
+    trail.append(id_debug)
 
     payload = {"period": period}
     if stock_id is not None:
@@ -111,6 +130,8 @@ def fetch_daily_price_history(short_symbol: str, period: int = 3) -> pd.DataFram
         # Some deployments of this endpoint accept the symbol directly
         payload["stockId"] = full_symbol
 
+    chart_debug = {"step": "companyChartDataByStock", "payload": payload,
+                   "status_code": None, "error": None, "raw_sample": None}
     try:
         resp = requests.post(
             BASE_URL + "companyChartDataByStock",
@@ -118,14 +139,20 @@ def fetch_daily_price_history(short_symbol: str, period: int = 3) -> pd.DataFram
             headers=HEADERS,
             timeout=15,
         )
+        chart_debug["status_code"] = resp.status_code
         resp.raise_for_status()
         raw = resp.json()
-    except Exception:
-        return pd.DataFrame()
+        chart_debug["raw_sample"] = str(raw)[:500]
+    except Exception as e:
+        chart_debug["error"] = f"{type(e).__name__}: {e}"
+        trail.append(chart_debug)
+        return pd.DataFrame(), trail
+
+    trail.append(chart_debug)
 
     chart_points = (raw.get("reqTradeSummery") or {}).get("chartData", [])
     if not chart_points:
-        return pd.DataFrame()
+        return pd.DataFrame(), trail
 
     df = pd.DataFrame(chart_points)
     # Expected fields: h (high), l (low), o (open, can be None), p (price/close), t (epoch ms)
@@ -151,7 +178,7 @@ def fetch_daily_price_history(short_symbol: str, period: int = 3) -> pd.DataFram
     daily["Open"] = daily["Open"].fillna(daily["Close"].shift(1))
     daily = daily.sort_values("Date")
 
-    return daily
+    return daily, trail
 
 
 def render_price_movement_section(short_symbol: str, display_name: str = ""):
@@ -167,7 +194,7 @@ def render_price_movement_section(short_symbol: str, display_name: str = ""):
         return
 
     with st.spinner(f"Fetching price history for {short_symbol}..."):
-        df = fetch_daily_price_history(short_symbol)
+        df, trail = fetch_daily_price_history(short_symbol)
 
     if df.empty:
         st.warning(
@@ -175,6 +202,8 @@ def render_price_movement_section(short_symbol: str, display_name: str = ""):
             "The CSE data endpoint may be temporarily unavailable, or this symbol "
             "doesn't match CSE's naming (e.g. it may need a suffix like `.N0000`)."
         )
+        with st.expander("Debug details (send this to Claude if you're stuck)"):
+            st.json(trail)
         return
 
     latest = df.iloc[-1]
