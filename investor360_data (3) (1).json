@@ -1,6 +1,6 @@
 {
   "meta": {
-    "description": "Investor 360 — CSE Financial Dataset",
+    "description": "Investor 360 - CSE Financial Dataset",
     "exchange": "Colombo Stock Exchange (CSE)",
     "total_companies": 186,
     "total_brokers": 13,
@@ -2512,7 +2512,7 @@
     },
     "THE COLOMBO FORT LAND AND BUILD": {
       "name": "THE COLOMBO FORT LAND AND BUILD",
-      "symbol": "",
+      "symbol": "CFLB",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -3150,7 +3150,7 @@
     },
     "THE KANDY HOTELS COMPANY": {
       "name": "THE KANDY HOTELS COMPANY",
-      "symbol": "",
+      "symbol": "KHC",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -3788,7 +3788,7 @@
     },
     "THE LANKA HOSPITALS CORPORATION": {
       "name": "THE LANKA HOSPITALS CORPORATION",
-      "symbol": "",
+      "symbol": "LHCL",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -4107,7 +4107,7 @@
     },
     "THE NUWARA ELIYA HOTELS COMPANY": {
       "name": "THE NUWARA ELIYA HOTELS COMPANY",
-      "symbol": "",
+      "symbol": "NEH",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -4426,7 +4426,7 @@
     },
     "TOKYO CEMENT COMPANY (LANKA) PL": {
       "name": "TOKYO CEMENT COMPANY (LANKA) PL",
-      "symbol": "",
+      "symbol": "TKYO",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -7297,7 +7297,7 @@
     },
     "Madulsima Plantations PLC": {
       "name": "Madulsima Plantations PLC",
-      "symbol": "",
+      "symbol": "MADU",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -8254,7 +8254,7 @@
     },
     "MAHAWELI COCONUT PLANTATIONS PL": {
       "name": "MAHAWELI COCONUT PLANTATIONS PL",
-      "symbol": "",
+      "symbol": "MCPL",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -9530,7 +9530,7 @@
     },
     "MERCANTILE INVESTMENTS AND FINA": {
       "name": "MERCANTILE INVESTMENTS AND FINA",
-      "symbol": "",
+      "symbol": "MERC",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -11123,9 +11123,9 @@
         }
       }
     },
-    "PAN ASIA BANKING CORPORATION PL": {
-      "name": "PAN ASIA BANKING CORPORATION PL",
-      "symbol": "",
+    "PAN ASIA BANKING CORPORATION PLC": {
+      "name": "PAN ASIA BANKING CORPORATION PLC",
+      "symbol": "PABC",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -13037,9 +13037,9 @@
         }
       }
     },
-    "SAMSON INTERNATIONAL PLC (2)": {
-      "name": "SAMSON INTERNATIONAL PLC (2)",
-      "symbol": "",
+    "SAMSON INTERNATIONAL PLC": {
+      "name": "SAMSON INTERNATIONAL PLC",
+      "symbol": "SIL",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -25159,9 +25159,9 @@
         }
       }
     },
-    "MERCHANT BANK OF SRI LANKA & FI": {
-      "name": "MERCHANT BANK OF SRI LANKA & FI",
-      "symbol": "",
+    "MERCHANT BANK OF SRI LANKA & FINANCE PLC": {
+      "name": "MERCHANT BANK OF SRI LANKA & FINANCE PLC",
+      "symbol": "MBSL",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -25478,9 +25478,9 @@
         }
       }
     },
-    "MILLENNIUM HOUSING DEVELOPERS P": {
-      "name": "MILLENNIUM HOUSING DEVELOPERS P",
-      "symbol": "",
+    "MILLENNIUM HOUSING DEVELOPERS PLC": {
+      "name": "MILLENNIUM HOUSING DEVELOPERS PLC",
+      "symbol": "MHDL",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -30088,9 +30088,9 @@
         }
       }
     },
-    "LANKA CREDIT AND BUSINESS FINAN": {
-      "name": "LANKA CREDIT AND BUSINESS FINAN",
-      "symbol": "",
+    "LANKA CREDIT AND BUSINESS FINANCE PLC": {
+      "name": "LANKA CREDIT AND BUSINESS FINANCE PLC",
+      "symbol": "LCBF",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -33641,9 +33641,9 @@
         }
       }
     },
-    "INDUSTRIAL ASPHALTS (CEYLON) PL": {
-      "name": "INDUSTRIAL ASPHALTS (CEYLON) PL",
-      "symbol": "",
+    "INDUSTRIAL ASPHALTS (CEYLON) PLC": {
+      "name": "INDUSTRIAL ASPHALTS (CEYLON) PLC",
+      "symbol": "ASPH",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -34523,9 +34523,9 @@
         }
       }
     },
-    "HOUSING DEVELOPMENT FINANCE COR": {
-      "name": "HOUSING DEVELOPMENT FINANCE COR",
-      "symbol": "",
+    "HOUSING DEVELOPMENT FINANCE CORPORATION LTD": {
+      "name": "HOUSING DEVELOPMENT FINANCE CORPORATION LTD",
+      "symbol": "HDFC",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -41635,9 +41635,9 @@
         }
       }
     },
-    "DISTILLERIES COMPANY OF SRI LAN": {
-      "name": "DISTILLERIES COMPANY OF SRI LAN",
-      "symbol": "",
+    "DISTILLERIES COMPANY OF SRI LANKA PLC": {
+      "name": "DISTILLERIES COMPANY OF SRI LANKA PLC",
+      "symbol": "DIST",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -44112,9 +44112,9 @@
         }
       }
     },
-    "Co-operative Insurance Company": {
-      "name": "Co-operative Insurance Company",
-      "symbol": "",
+    "CO-OPERATIVE INSURANCE COMPANY PLC": {
+      "name": "CO-OPERATIVE INSURANCE COMPANY PLC",
+      "symbol": "COOP",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -44700,9 +44700,9 @@
         }
       }
     },
-    "COMMERCIAL DEVELOPMENT COMPANY": {
-      "name": "COMMERCIAL DEVELOPMENT COMPANY",
-      "symbol": "",
+    "COMMERCIAL DEVELOPMENT COMPANY PLC": {
+      "name": "COMMERCIAL DEVELOPMENT COMPANY PLC",
+      "symbol": "COMD",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -44919,9 +44919,9 @@
         }
       }
     },
-    "COMMERCIAL CREDIT AND FINANCE": {
-      "name": "COMMERCIAL CREDIT AND FINANCE",
-      "symbol": "",
+    "COMMERCIAL CREDIT AND FINANCE PLC": {
+      "name": "COMMERCIAL CREDIT AND FINANCE PLC",
+      "symbol": "COCR",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -45457,9 +45457,9 @@
         }
       }
     },
-    "COLOMBO LAND AND DEVELOPMENT CO": {
-      "name": "COLOMBO LAND AND DEVELOPMENT CO",
-      "symbol": "",
+    "COLOMBO LAND AND DEVELOPMENT CO. PLC": {
+      "name": "COLOMBO LAND AND DEVELOPMENT CO. PLC",
+      "symbol": "CLND",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -46608,9 +46608,9 @@
         }
       }
     },
-    "CITIZENS DEVELOPMENT BUSINESS F": {
-      "name": "CITIZENS DEVELOPMENT BUSINESS F",
-      "symbol": "",
+    "CITIZENS DEVELOPMENT BUSINESS FINANCE PLC": {
+      "name": "CITIZENS DEVELOPMENT BUSINESS FINANCE PLC",
+      "symbol": "CDB",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -51775,9 +51775,9 @@
         }
       }
     },
-    "BANSEI ROYAL RESORTS HIKKADUWA": {
-      "name": "BANSEI ROYAL RESORTS HIKKADUWA",
-      "symbol": "",
+    "BANSEI ROYAL RESORTS HIKKADUWA PLC": {
+      "name": "BANSEI ROYAL RESORTS HIKKADUWA PLC",
+      "symbol": "BRR",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -53001,9 +53001,9 @@
         }
       }
     },
-    "ASSOCIATED MOTOR FINANCE COMPAN": {
-      "name": "ASSOCIATED MOTOR FINANCE COMPAN",
-      "symbol": "",
+    "ASSOCIATED MOTOR FINANCE COMPANY PLC": {
+      "name": "ASSOCIATED MOTOR FINANCE COMPANY PLC",
+      "symbol": "AMF",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -56060,9 +56060,9 @@
         }
       }
     },
-    "AITKEN SPENCE HOTEL HOLDINGS PL": {
-      "name": "AITKEN SPENCE HOTEL HOLDINGS PL",
-      "symbol": "",
+    "AITKEN SPENCE HOTEL HOLDINGS PLC": {
+      "name": "AITKEN SPENCE HOTEL HOLDINGS PLC",
+      "symbol": "AHUN",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
@@ -57313,7 +57313,7 @@
     },
     "AGALAWATTE PLANTATION PLC": {
       "name": "AGALAWATTE PLANTATION PLC",
-      "symbol": "",
+      "symbol": "AGAL",
       "sector": "Unknown",
       "industry": "Unknown",
       "years": [
