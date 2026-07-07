@@ -96,11 +96,13 @@ def _resolve_stock_id(full_symbol: str):
     return None, debug
 
 
-def fetch_daily_price_history(short_symbol: str, period: int = 3):
+def fetch_daily_price_history(symbol: str, period: int = 3):
     """
     Fetch and return a daily OHLC DataFrame for a CSE company.
 
-    short_symbol: the short ticker as used in your investor360 data (e.g. "DIAL")
+    symbol: the FULL CSE symbol as stored in your investor360 data,
+            e.g. "SPEN.N0000" (this already includes the exchange suffix,
+            so no lookup/mapping is needed).
     period: CSE's internal period code for companyChartDataByStock.
             Meaning isn't publicly documented — try 1/2/3/4/5 if the
             returned range looks too short or too long for your needs.
@@ -109,16 +111,20 @@ def fetch_daily_price_history(short_symbol: str, period: int = 3):
     Date, Open, High, Low, Close (empty DataFrame if nothing could be fetched).
     """
     trail = []
+    full_symbol = symbol.strip().upper() if symbol else None
 
-    symbol_map, map_debug = _fetch_symbol_map()
-    trail.append(map_debug)
-
-    full_symbol = symbol_map.get(short_symbol.upper())
-    trail.append({"step": "symbol_lookup", "short_symbol": short_symbol,
-                  "resolved_full_symbol": full_symbol})
+    trail.append({"step": "symbol_input", "received": symbol, "used_as": full_symbol})
 
     if not full_symbol:
         return pd.DataFrame(), trail
+
+    # If somehow a short symbol without suffix was passed (no "."), fall back
+    # to searching the live trade feed for a match — best effort only.
+    if "." not in full_symbol:
+        symbol_map, map_debug = _fetch_symbol_map()
+        trail.append(map_debug)
+        full_symbol = symbol_map.get(full_symbol, full_symbol)
+        trail.append({"step": "fallback_symbol_lookup", "resolved_full_symbol": full_symbol})
 
     stock_id, id_debug = _resolve_stock_id(full_symbol)
     trail.append(id_debug)
@@ -181,26 +187,27 @@ def fetch_daily_price_history(short_symbol: str, period: int = 3):
     return daily, trail
 
 
-def render_price_movement_section(short_symbol: str, display_name: str = ""):
+def render_price_movement_section(symbol: str, display_name: str = ""):
     """
     Streamlit component: renders a candlestick chart of daily price
-    movements for the given CSE short symbol (e.g. "DIAL").
+    movements for the given CSE company. `symbol` should be the FULL
+    CSE symbol as stored in your data (e.g. "SPEN.N0000").
     Call this above your financials section for the selected company.
     """
     st.markdown("### Price Movement")
 
-    if not short_symbol:
+    if not symbol:
         st.info("No ticker symbol available for this company.")
         return
 
-    with st.spinner(f"Fetching price history for {short_symbol}..."):
-        df, trail = fetch_daily_price_history(short_symbol)
+    with st.spinner(f"Fetching price history for {symbol}..."):
+        df, trail = fetch_daily_price_history(symbol)
 
     if df.empty:
         st.warning(
-            f"Couldn't fetch price movement data for **{short_symbol}** right now. "
-            "The CSE data endpoint may be temporarily unavailable, or this symbol "
-            "doesn't match CSE's naming (e.g. it may need a suffix like `.N0000`)."
+            f"Couldn't fetch price movement data for **{symbol}** right now. "
+            "The CSE data endpoint may be temporarily unavailable, or the "
+            "chart-data request failed for this symbol."
         )
         with st.expander("Debug details (send this to Claude if you're stuck)"):
             st.json(trail)
