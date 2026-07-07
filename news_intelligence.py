@@ -396,7 +396,7 @@ def render_macro_dashboard():
             st.markdown(f"""
             <div style="background:#ffffff;border:1px solid #e0e7ef;border-radius:10px;
                         padding:12px 8px;text-align:center;height:92px;">
-                <div style="font-size:0.60rem;color:#5a7199;font-weight:600;line-height:1.2;">{label}</div>
+                <div style="font-size:0.70rem;color:#5a7199;font-weight:600;line-height:1.2;">{label}</div>
                 <div style="font-size:0.70rem;font-weight:800;color:#0B1D51;margin-top:6px;">
                     {fmt_macro(sl_val, meta['suffix'])}
                 </div>
