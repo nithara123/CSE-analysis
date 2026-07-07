@@ -201,12 +201,19 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
     return daily, trail
 
 
-def render_price_movement_section(symbol: str, display_name: str = ""):
+def render_price_movement_section(symbol: str, display_name: str = "", period: int = 4):
     """
     Streamlit component: renders a candlestick chart of daily price
     movements for the given CSE company. `symbol` can be either a short
     symbol (e.g. "SPEN") or a full CSE symbol (e.g. "SPEN.N0000") — the
     correct share class (.N0000 / .X0000) is resolved automatically.
+
+    period: CSE's internal range code. Not officially documented — based on
+    testing, higher numbers = longer range. period=3 returned ~20 trading
+    days (~1 month); period=4 is a reasonable starting guess for ~3 months.
+    If the date range shown doesn't match what you want, try adjusting
+    this up or down and check the "Range" metric below the chart title.
+
     Call this above your financials section for the selected company.
     """
     st.markdown("### Price Movement")
@@ -216,7 +223,7 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
         return
 
     with st.spinner(f"Fetching price history for {symbol}..."):
-        df, trail = fetch_daily_price_history(symbol)
+        df, trail = fetch_daily_price_history(symbol, period=period)
 
     if df.empty:
         st.warning(
@@ -233,11 +240,15 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
     change = latest["Close"] - prev["Close"]
     pct = (change / prev["Close"] * 100) if prev["Close"] else 0
 
+    first_date = df["Date"].min()
+    last_date = df["Date"].max()
+    span_days = (last_date - first_date).days
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Last Close", f"{latest['Close']:.2f}", f"{pct:.2f}%")
     c2.metric("Day High", f"{latest['High']:.2f}")
     c3.metric("Day Low", f"{latest['Low']:.2f}")
-    c4.metric("Data Points", f"{len(df)} days")
+    c4.metric("Range Covered", f"{first_date} → {last_date}", f"~{span_days} calendar days")
 
     fig = go.Figure(
         go.Candlestick(
