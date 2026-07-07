@@ -201,6 +201,31 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
     return daily, trail
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_best_daily_price_history(symbol: str, min_days_target: int = 150):
+    """
+    CSE's 'period' code for companyChartDataByStock has been observed to be
+    unreliable — the same code can return a full year of data on one call
+    and only a handful of days on another. To work around this, try several
+    candidate period codes and keep whichever result actually has the most
+    trading days, so the 1-6 month slider has real data to work with.
+
+    Returns a DataFrame with columns: Date, Open, High, Low, Close
+    (empty DataFrame if every attempt failed).
+    """
+    candidate_periods = [6, 7, 5, 4, 3]
+    best_df = pd.DataFrame()
+
+    for p in candidate_periods:
+        df, _ = fetch_daily_price_history(symbol, period=p)
+        if len(df) > len(best_df):
+            best_df = df
+        if len(best_df) >= min_days_target:
+            break
+
+    return best_df
+
+
 def render_price_movement_section(symbol: str, display_name: str = ""):
     """
     Streamlit component: renders a candlestick chart of daily price
@@ -208,10 +233,12 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
     symbol (e.g. "SPEN") or a full CSE symbol (e.g. "SPEN.N0000") — the
     correct share class (.N0000 / .X0000) is resolved automatically.
 
-    Fetches a fixed ~1-year window from CSE once (period=6, confirmed via
-    testing to return ~363 calendar days), then lets the user slide through
-    1-6 months of that data client-side — avoiding any dependence on CSE's
-    undocumented period codes for fine-grained ranges.
+    Fetches historical daily data from CSE, automatically trying several
+    of CSE's period codes and keeping whichever returns the most data
+    (their period codes have proven unreliable in practice — the same
+    code can return a year of data on one call and a handful of days on
+    another). The user then slides through 1-6 months of that data
+    client-side, so switching ranges is instant with no extra fetches.
 
     Call this above your financials section for the selected company.
     """
@@ -222,21 +249,14 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
         return
 
     with st.spinner(f"Fetching price history for {symbol}..."):
-        full_df, trail = fetch_daily_price_history(symbol, period=6)
+        full_df = fetch_best_daily_price_history(symbol)
 
     if full_df.empty:
         st.warning(
             f"Couldn't fetch price movement data for **{symbol}** right now. "
-            "The CSE data endpoint may be temporarily unavailable, or this "
-            "symbol couldn't be matched to a CSE share class (.N0000/.X0000)."
+            "The CSE data endpoint may be temporarily unavailable."
         )
-        with st.expander("Debug details (send this to Claude if you're stuck)"):
-            st.json(trail)
         return
-
-    st.caption(f"Fetched {len(full_df)} total trading days from CSE for this symbol.")
-    with st.expander("Debug details (raw fetch info)"):
-        st.json(trail)
 
     months_back = st.slider(
         "Months to show", min_value=1, max_value=6, value=3, step=1,
