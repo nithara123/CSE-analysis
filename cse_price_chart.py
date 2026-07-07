@@ -1,182 +1,211 @@
 """
-Daily Price Movement Tracker
-----------------------------
-A Streamlit app that pulls historical daily price data for any publicly
-traded company (via its ticker symbol) and visualizes day-to-day price
-movements, % change, and volatility.
+cse_price_chart.py
+-------------------
+Fetches and renders daily price movement (candlestick) charts for
+Colombo Stock Exchange (CSE) listed companies, using CSE's public
+(unofficial, reverse-engineered) web API — the same one that powers
+charts on cse.lk.
 
-Run with:
-    streamlit run price_movement_app.py
+Drop this file next to your Investor 360 app.py and import it:
 
-Requires:
-    pip install streamlit yfinance pandas plotly
+    from cse_price_chart import render_price_movement_section
+
+Then call it inside your per-company expander, above the financials:
+
+    render_price_movement_section(fd.get("symbol"), company_name)
+
+NOTE: This relies on an UNOFFICIAL API (no published docs from CSE).
+Endpoints/field names may change without notice. If it breaks, the
+`st.error` messages below will tell you what failed.
 """
 
-import streamlit as st
-import yfinance as yf
+import requests
 import pandas as pd
+import streamlit as st
 import plotly.graph_objects as go
-from datetime import date, timedelta
+from datetime import datetime
 
-st.set_page_config(page_title="Daily Price Movement Tracker", layout="wide")
-
-st.title("📈 Daily Price Movement Tracker")
-st.caption("Track day-to-day price movements for any listed company.")
-
-# ---------------------------
-# Sidebar controls
-# ---------------------------
-with st.sidebar:
-    st.header("Settings")
-
-    ticker_input = st.text_input(
-        "Company ticker symbol",
-        value="AAPL",
-        help="e.g. AAPL (Apple), MSFT (Microsoft), TSLA (Tesla), GOOGL (Alphabet)",
-    ).strip().upper()
-
-    default_start = date.today() - timedelta(days=180)
-    start_date = st.date_input("Start date", value=default_start)
-    end_date = st.date_input("End date", value=date.today())
-
-    interval = st.selectbox(
-        "Interval",
-        options=["1d", "1wk", "1mo"],
-        index=0,
-        help="Granularity of price data",
-    )
-
-    show_ma = st.checkbox("Show moving averages (20/50 day)", value=True)
-
-    fetch_button = st.button("Fetch data", type="primary")
+BASE_URL = "https://www.cse.lk/api/"
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://www.cse.lk/",
+}
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def load_price_data(ticker: str, start: date, end: date, interval: str) -> pd.DataFrame:
-    """Download historical price data for a ticker using yfinance."""
-    data = yf.download(
-        ticker,
-        start=start,
-        end=end + timedelta(days=1),  # include end date
-        interval=interval,
-        progress=False,
-    )
-    if data.empty:
-        return data
-
-    # Flatten multi-index columns if present (happens with some yfinance versions)
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
-
-    data = data.reset_index()
-    data["Daily Change"] = data["Close"].diff()
-    data["Daily % Change"] = data["Close"].pct_change() * 100
-    if show_ma:
-        data["MA20"] = data["Close"].rolling(20).mean()
-        data["MA50"] = data["Close"].rolling(50).mean()
-    return data
-
-
-def get_company_name(ticker: str) -> str:
+@st.cache_data(ttl=1800, show_spinner=False)
+def _fetch_symbol_map() -> dict:
+    """
+    Build a map of {short_symbol: full_cse_symbol} e.g. {"DIAL": "DIAL.N0000"}
+    by pulling CSE's full daily share price list once and matching on the
+    prefix before the first dot.
+    """
     try:
-        info = yf.Ticker(ticker).info
-        return info.get("longName") or info.get("shortName") or ticker
+        resp = requests.post(BASE_URL + "todaySharePrice", headers=HEADERS, timeout=15)
+        resp.raise_for_status()
+        rows = resp.json()
+    except Exception as e:
+        return {}
+
+    mapping = {}
+    if isinstance(rows, list):
+        for row in rows:
+            full_symbol = row.get("symbol")  # e.g. "DIAL.N0000"
+            if full_symbol and "." in full_symbol:
+                short = full_symbol.split(".")[0]
+                mapping[short] = full_symbol
+    return mapping
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _resolve_stock_id(full_symbol: str):
+    """
+    Given a full CSE symbol (e.g. 'DIAL.N0000'), fetch companyInfoSummery
+    to get the numeric id CSE uses internally for chart requests, if present.
+    Falls back to the symbol string itself if no numeric id is found.
+    """
+    try:
+        resp = requests.post(
+            BASE_URL + "companyInfoSummery",
+            data={"symbol": full_symbol},
+            headers=HEADERS,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        info = resp.json()
     except Exception:
-        return ticker
+        return None
+
+    # Try common places an id might show up in the response.
+    for section in ("reqSymbolInfo", "reqLogo"):
+        block = info.get(section, {})
+        if isinstance(block, dict) and "id" in block:
+            return block["id"]
+    return None
 
 
-# ---------------------------
-# Main content
-# ---------------------------
-if ticker_input:
-    with st.spinner(f"Fetching data for {ticker_input}..."):
-        df = load_price_data(ticker_input, start_date, end_date, interval)
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_daily_price_history(short_symbol: str, period: int = 3) -> pd.DataFrame:
+    """
+    Fetch and return a daily OHLC DataFrame for a CSE company.
+
+    short_symbol: the short ticker as used in your investor360 data (e.g. "DIAL")
+    period: CSE's internal period code for companyChartDataByStock.
+            Meaning isn't publicly documented — try 1/2/3/4/5 if the
+            returned range looks too short or too long for your needs.
+
+    Returns a DataFrame with columns: Date, Open, High, Low, Close
+    (empty DataFrame if nothing could be fetched).
+    """
+    symbol_map = _fetch_symbol_map()
+    full_symbol = symbol_map.get(short_symbol.upper())
+
+    if not full_symbol:
+        return pd.DataFrame()
+
+    stock_id = _resolve_stock_id(full_symbol)
+
+    payload = {"period": period}
+    if stock_id is not None:
+        payload["stockId"] = stock_id
+    else:
+        # Some deployments of this endpoint accept the symbol directly
+        payload["stockId"] = full_symbol
+
+    try:
+        resp = requests.post(
+            BASE_URL + "companyChartDataByStock",
+            data=payload,
+            headers=HEADERS,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        raw = resp.json()
+    except Exception:
+        return pd.DataFrame()
+
+    chart_points = (raw.get("reqTradeSummery") or {}).get("chartData", [])
+    if not chart_points:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(chart_points)
+    # Expected fields: h (high), l (low), o (open, can be None), p (price/close), t (epoch ms)
+    if "t" not in df.columns:
+        return pd.DataFrame()
+
+    df["Date"] = pd.to_datetime(df["t"], unit="ms").dt.date
+    df = df.rename(columns={"h": "High", "l": "Low", "o": "Open", "p": "Close"})
+
+    for col in ["High", "Low", "Open", "Close"]:
+        if col not in df.columns:
+            df[col] = None
+
+    # Aggregate to one row per calendar day in case of multiple intraday points
+    daily = df.groupby("Date").agg(
+        Open=("Open", lambda s: s.dropna().iloc[0] if s.dropna().any() else None),
+        High=("High", "max"),
+        Low=("Low", "min"),
+        Close=("Close", "last"),
+    ).reset_index()
+
+    # Fill missing Open with previous day's Close where possible
+    daily["Open"] = daily["Open"].fillna(daily["Close"].shift(1))
+    daily = daily.sort_values("Date")
+
+    return daily
+
+
+def render_price_movement_section(short_symbol: str, display_name: str = ""):
+    """
+    Streamlit component: renders a candlestick chart of daily price
+    movements for the given CSE short symbol (e.g. "DIAL").
+    Call this above your financials section for the selected company.
+    """
+    st.markdown("### Price Movement")
+
+    if not short_symbol:
+        st.info("No ticker symbol available for this company.")
+        return
+
+    with st.spinner(f"Fetching price history for {short_symbol}..."):
+        df = fetch_daily_price_history(short_symbol)
 
     if df.empty:
-        st.error(
-            f"No data found for '{ticker_input}'. Check the ticker symbol and date range."
+        st.warning(
+            f"Couldn't fetch price movement data for **{short_symbol}** right now. "
+            "The CSE data endpoint may be temporarily unavailable, or this symbol "
+            "doesn't match CSE's naming (e.g. it may need a suffix like `.N0000`)."
         )
-    else:
-        company_name = get_company_name(ticker_input)
-        st.subheader(f"{company_name} ({ticker_input})")
+        return
 
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
+    latest = df.iloc[-1]
+    prev = df.iloc[-2] if len(df) > 1 else latest
+    change = latest["Close"] - prev["Close"]
+    pct = (change / prev["Close"] * 100) if prev["Close"] else 0
 
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric(
-            "Latest Close",
-            f"${latest['Close']:.2f}",
-            f"{latest['Daily % Change']:.2f}%" if pd.notna(latest["Daily % Change"]) else None,
-        )
-        col2.metric("Day High", f"${latest['High']:.2f}")
-        col3.metric("Day Low", f"${latest['Low']:.2f}")
-        col4.metric("Volume", f"{int(latest['Volume']):,}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Last Close", f"{latest['Close']:.2f}", f"{pct:.2f}%")
+    c2.metric("Day High", f"{latest['High']:.2f}")
+    c3.metric("Day Low", f"{latest['Low']:.2f}")
+    c4.metric("Data Points", f"{len(df)} days")
 
-        # ---------------------------
-        # Price chart
-        # ---------------------------
-        fig = go.Figure()
-        fig.add_trace(
-            go.Candlestick(
-                x=df["Date"],
-                open=df["Open"],
-                high=df["High"],
-                low=df["Low"],
-                close=df["Close"],
-                name="Price",
-            )
+    fig = go.Figure(
+        go.Candlestick(
+            x=df["Date"],
+            open=df["Open"],
+            high=df["High"],
+            low=df["Low"],
+            close=df["Close"],
+            increasing_line_color="#16a34a",
+            decreasing_line_color="#dc2626",
         )
-        if show_ma and "MA20" in df.columns:
-            fig.add_trace(
-                go.Scatter(x=df["Date"], y=df["MA20"], name="MA20", line=dict(width=1))
-            )
-            fig.add_trace(
-                go.Scatter(x=df["Date"], y=df["MA50"], name="MA50", line=dict(width=1))
-            )
-        fig.update_layout(
-            xaxis_title="Date",
-            yaxis_title="Price (USD)",
-            xaxis_rangeslider_visible=False,
-            height=500,
-            margin=dict(l=10, r=10, t=30, b=10),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # ---------------------------
-        # Daily % change bar chart
-        # ---------------------------
-        st.subheader("Daily % Change")
-        change_fig = go.Figure()
-        colors = ["#2ecc71" if v >= 0 else "#e74c3c" for v in df["Daily % Change"].fillna(0)]
-        change_fig.add_trace(
-            go.Bar(x=df["Date"], y=df["Daily % Change"], marker_color=colors)
-        )
-        change_fig.update_layout(
-            xaxis_title="Date",
-            yaxis_title="% Change",
-            height=300,
-            margin=dict(l=10, r=10, t=10, b=10),
-        )
-        st.plotly_chart(change_fig, use_container_width=True)
-
-        # ---------------------------
-        # Data table + download
-        # ---------------------------
-        st.subheader("Raw Data")
-        display_cols = ["Date", "Open", "High", "Low", "Close", "Volume", "Daily Change", "Daily % Change"]
-        st.dataframe(
-            df[display_cols].sort_values("Date", ascending=False),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-        csv = df[display_cols].to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "Download data as CSV",
-            data=csv,
-            file_name=f"{ticker_input}_price_movements.csv",
-            mime="text/csv",
-        )
-else:
-    st.info("Enter a ticker symbol in the sidebar to get started.")
+    )
+    fig.update_layout(
+        title=dict(text=f"{display_name or short_symbol} — Daily Price Movement",
+                    font=dict(color="#0B1D51", size=13), x=0),
+        xaxis_rangeslider_visible=False,
+        paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB",
+        font=dict(color="#5a7199"),
+        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2", title="Price (LKR)"),
+        margin=dict(l=10, r=10, t=40, b=10), height=380,
+    )
+    st.plotly_chart(fig, use_container_width=True)
