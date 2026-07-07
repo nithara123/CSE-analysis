@@ -33,34 +33,47 @@ HEADERS = {
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _fetch_symbol_map():
+def _resolve_full_symbol(short_symbol: str):
     """
-    Build a map of {short_symbol: full_cse_symbol} e.g. {"DIAL": "DIAL.N0000"}
-    by pulling CSE's full daily share price list once and matching on the
-    prefix before the first dot.
+    Given a short symbol as stored in your investor360 data (e.g. "SPEN"),
+    figure out the full CSE symbol (e.g. "SPEN.N0000") by trying the common
+    CSE share-class suffixes directly against companyInfoSummery, which
+    works regardless of whether the stock traded recently.
 
-    Returns (mapping_dict, debug_info_dict).
+    Order of preference:
+      .N0000 - ordinary voting shares (most companies)
+      .X0000 - non-voting shares (some companies only have this class)
+
+    Returns (full_symbol_or_None, debug_info_dict).
     """
-    debug = {"step": "todaySharePrice", "status_code": None, "error": None, "raw_sample": None}
-    try:
-        resp = requests.post(BASE_URL + "todaySharePrice", headers=HEADERS, timeout=15)
-        debug["status_code"] = resp.status_code
-        resp.raise_for_status()
-        rows = resp.json()
-        debug["raw_sample"] = rows[:3] if isinstance(rows, list) else rows
-    except Exception as e:
-        debug["error"] = f"{type(e).__name__}: {e}"
-        return {}, debug
+    short_symbol = short_symbol.strip().upper()
 
-    mapping = {}
-    if isinstance(rows, list):
-        for row in rows:
-            full_symbol = row.get("symbol")  # e.g. "DIAL.N0000"
-            if full_symbol and "." in full_symbol:
-                short = full_symbol.split(".")[0]
-                mapping[short] = full_symbol
-    debug["mapping_count"] = len(mapping)
-    return mapping, debug
+    # If it already looks like a full symbol (has a suffix), just use it as-is.
+    if "." in short_symbol:
+        return short_symbol, {"step": "resolve_full_symbol", "note": "already had suffix", "used": short_symbol}
+
+    candidates = [f"{short_symbol}.N0000", f"{short_symbol}.X0000"]
+    attempts = []
+
+    for candidate in candidates:
+        try:
+            resp = requests.post(
+                BASE_URL + "companyInfoSummery",
+                data={"symbol": candidate},
+                headers=HEADERS,
+                timeout=15,
+            )
+            attempts.append({"candidate": candidate, "status_code": resp.status_code})
+            if resp.status_code == 200:
+                info = resp.json()
+                sym_info = info.get("reqSymbolInfo") or {}
+                # A valid hit will have a name and/or a lastTradedPrice populated.
+                if sym_info.get("name") or sym_info.get("lastTradedPrice") is not None:
+                    return candidate, {"step": "resolve_full_symbol", "attempts": attempts, "matched": candidate}
+        except Exception as e:
+            attempts.append({"candidate": candidate, "error": f"{type(e).__name__}: {e}"})
+
+    return None, {"step": "resolve_full_symbol", "attempts": attempts, "matched": None}
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -100,9 +113,8 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
     """
     Fetch and return a daily OHLC DataFrame for a CSE company.
 
-    symbol: the FULL CSE symbol as stored in your investor360 data,
-            e.g. "SPEN.N0000" (this already includes the exchange suffix,
-            so no lookup/mapping is needed).
+    symbol: either a short symbol as stored in your investor360 data
+            (e.g. "SPEN") or a full CSE symbol (e.g. "SPEN.N0000") — both work.
     period: CSE's internal period code for companyChartDataByStock.
             Meaning isn't publicly documented — try 1/2/3/4/5 if the
             returned range looks too short or too long for your needs.
@@ -111,20 +123,15 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
     Date, Open, High, Low, Close (empty DataFrame if nothing could be fetched).
     """
     trail = []
-    full_symbol = symbol.strip().upper() if symbol else None
 
-    trail.append({"step": "symbol_input", "received": symbol, "used_as": full_symbol})
+    if not symbol:
+        return pd.DataFrame(), [{"step": "symbol_input", "error": "empty symbol"}]
+
+    full_symbol, resolve_debug = _resolve_full_symbol(symbol)
+    trail.append(resolve_debug)
 
     if not full_symbol:
         return pd.DataFrame(), trail
-
-    # If somehow a short symbol without suffix was passed (no "."), fall back
-    # to searching the live trade feed for a match — best effort only.
-    if "." not in full_symbol:
-        symbol_map, map_debug = _fetch_symbol_map()
-        trail.append(map_debug)
-        full_symbol = symbol_map.get(full_symbol, full_symbol)
-        trail.append({"step": "fallback_symbol_lookup", "resolved_full_symbol": full_symbol})
 
     stock_id, id_debug = _resolve_stock_id(full_symbol)
     trail.append(id_debug)
@@ -190,8 +197,9 @@ def fetch_daily_price_history(symbol: str, period: int = 3):
 def render_price_movement_section(symbol: str, display_name: str = ""):
     """
     Streamlit component: renders a candlestick chart of daily price
-    movements for the given CSE company. `symbol` should be the FULL
-    CSE symbol as stored in your data (e.g. "SPEN.N0000").
+    movements for the given CSE company. `symbol` can be either a short
+    symbol (e.g. "SPEN") or a full CSE symbol (e.g. "SPEN.N0000") — the
+    correct share class (.N0000 / .X0000) is resolved automatically.
     Call this above your financials section for the selected company.
     """
     st.markdown("### Price Movement")
@@ -206,8 +214,8 @@ def render_price_movement_section(symbol: str, display_name: str = ""):
     if df.empty:
         st.warning(
             f"Couldn't fetch price movement data for **{symbol}** right now. "
-            "The CSE data endpoint may be temporarily unavailable, or the "
-            "chart-data request failed for this symbol."
+            "The CSE data endpoint may be temporarily unavailable, or this "
+            "symbol couldn't be matched to a CSE share class (.N0000/.X0000)."
         )
         with st.expander("Debug details (send this to Claude if you're stuck)"):
             st.json(trail)
