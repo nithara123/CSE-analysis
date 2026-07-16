@@ -10,26 +10,26 @@ from news_intelligence import render_market_intelligence
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
-/* ============================================================
-   INVESTOR 360 — "LEDGER" THEME
-   Soft lavender bento-dashboard aesthetic, grounded in CSE data:
-   the signature motif is a small candlestick "wick" tick that
-   marks every card/section header — a nod to the price charts
-   that anchor the whole app.
-   ============================================================
-   DESIGN TOKENS
-   Background   #F3F4FC  soft lavender-white
-   Surface      #FFFFFF  card white
-   Surface-alt  #EEF0FB  nested/inset lavender
-   Ink          #15172E  near-black navy (text)
-   Ink-soft     #8B93AD  muted slate (labels/captions)
-   Indigo       #4F46E5  primary accent / nav
-   Indigo-deep  #372FA0  hover/active
-   Teal         #14B8A6  positive / gains
-   Coral        #FB6A5B  negative / risk
-   Amber        #F5A524  neutral / moderate
-   Fonts: 'Sora' (display/headers), 'Inter' (body/data)
-   ============================================================ */
+# ============================================================
+# INVESTOR 360 — "LEDGER" THEME
+# Soft lavender bento-dashboard aesthetic, grounded in CSE data:
+# the signature motif is a small candlestick "wick" tick that
+# marks every card/section header — a nod to the price charts
+# that anchor the whole app.
+# ============================================================
+# DESIGN TOKENS
+# Background   #F3F4FC  soft lavender-white
+# Surface      #FFFFFF  card white
+# Surface-alt  #EEF0FB  nested/inset lavender
+# Ink          #15172E  near-black navy (text)
+# Ink-soft     #8B93AD  muted slate (labels/captions)
+# Indigo       #4F46E5  primary accent / nav
+# Indigo-deep  #372FA0  hover/active
+# Teal         #14B8A6  positive / gains
+# Coral        #FB6A5B  negative / risk
+# Amber        #F5A524  neutral / moderate
+# Fonts: 'Sora' (display/headers), 'Inter' (body/data)
+# ============================================================
 
 st.markdown("""
 <style>
