@@ -10,123 +10,258 @@ from news_intelligence import render_market_intelligence
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
+/* ============================================================
+   INVESTOR 360 — "LEDGER" THEME
+   Soft lavender bento-dashboard aesthetic, grounded in CSE data:
+   the signature motif is a small candlestick "wick" tick that
+   marks every card/section header — a nod to the price charts
+   that anchor the whole app.
+   ============================================================
+   DESIGN TOKENS
+   Background   #F3F4FC  soft lavender-white
+   Surface      #FFFFFF  card white
+   Surface-alt  #EEF0FB  nested/inset lavender
+   Ink          #15172E  near-black navy (text)
+   Ink-soft     #8B93AD  muted slate (labels/captions)
+   Indigo       #4F46E5  primary accent / nav
+   Indigo-deep  #372FA0  hover/active
+   Teal         #14B8A6  positive / gains
+   Coral        #FB6A5B  negative / risk
+   Amber        #F5A524  neutral / moderate
+   Fonts: 'Sora' (display/headers), 'Inter' (body/data)
+   ============================================================ */
+
 st.markdown("""
 <style>
-    .stApp { background-color: #F8F9FB; color: #1a1a2e; }
-    section[data-testid="stSidebar"] { background-color: #0B1D51; }
-    section[data-testid="stSidebar"] * { color: #d0e4ff !important; }
-    header[data-testid="stHeader"] { background: transparent; }
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
-    [data-testid="metric-container"] {
-        background: #ffffff; border: 1px solid #e0e7ef;
-        border-radius: 10px; padding: 16px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    }
-    [data-testid="metric-container"] label {
-        color: #5a7199 !important; font-size: 0.76rem;
-        font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-    }
-    [data-testid="metric-container"] [data-testid="metric-value"] {
-        color: #0B1D51 !important; font-size: 1.2rem !important; font-weight: 700;
-    }
-    .quote-banner {
-        background: linear-gradient(90deg, #0B1D51, #1a3a85);
-        border-radius: 10px; padding: 14px 22px; margin-bottom: 20px;
-        font-style: italic; color: #d0e4ff; font-size: 0.95rem;
-    }
-    .section-card {
-        background: #ffffff; border-radius: 12px; padding: 22px;
-        margin-bottom: 16px; border: 1px solid #e0e7ef;
-        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-    }
-    .tag-good { background:#dcfce7; color:#166534; padding:2px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
-    .tag-ok   { background:#fef9c3; color:#854d0e; padding:2px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
-    .tag-bad  { background:#fee2e2; color:#991b1b; padding:2px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+:root {
+    --bg: #F3F4FC;
+    --surface: #FFFFFF;
+    --surface-alt: #EEF0FB;
+    --ink: #15172E;
+    --ink-soft: #8B93AD;
+    --indigo: #4F46E5;
+    --indigo-deep: #372FA0;
+    --teal: #14B8A6;
+    --coral: #FB6A5B;
+    --amber: #F5A524;
+    --radius: 20px;
+    --shadow: 0 8px 24px rgba(21, 23, 46, 0.06);
+    --shadow-sm: 0 2px 10px rgba(21, 23, 46, 0.05);
+}
 
-    h1 { color:#0B1D51 !important; font-size:2rem !important; font-weight:800 !important; }
-    h2 { color:#0B1D51 !important; font-size:1.4rem !important; font-weight:700 !important; }
-    h3 { color:#0B1D51 !important; font-size:1.05rem !important; font-weight:600 !important; }
+/* ── Base ─────────────────────────────────────────────────── */
+html, body, .stApp {
+    background-color: var(--bg) !important;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+}
+header[data-testid="stHeader"] { background: transparent; }
+.block-container { padding-top: 1.75rem; padding-bottom: 2rem; }
 
-    .stTabs [role="tab"] { color:#5a7199; font-weight:600; font-size:0.88rem; }
-    .stTabs [role="tab"][aria-selected="true"] { color:#0B1D51; border-bottom:3px solid #0B1D51; }
-    .stSelectbox label, .stSlider label, .stMultiSelect label, .stRadio label {
-        color:#0B1D51 !important; font-weight:600; font-size:0.84rem;
-    }
-    .block-container { padding-top:1.5rem; padding-bottom:2rem; }
+/* ── Sidebar → pill nav, light not navy ──────────────────── */
+section[data-testid="stSidebar"] {
+    background-color: var(--surface);
+    border-right: 1px solid #E5E8F5;
+}
+section[data-testid="stSidebar"] * { color: var(--ink) !important; }
+section[data-testid="stSidebar"] h2 {
+    font-family: 'Sora', sans-serif !important;
+    font-weight: 800 !important;
+    color: var(--indigo) !important;
+    letter-spacing: -0.02em;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] { gap: 6px; display: flex; flex-direction: column; }
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    background: var(--surface-alt);
+    border-radius: 999px;
+    padding: 9px 16px;
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+    border-color: var(--indigo);
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+    background: var(--indigo) !important;
+    box-shadow: var(--shadow-sm);
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p {
+    color: #FFFFFF !important;
+}
 
-    .company-header {
-        background: linear-gradient(135deg, #0B1D51 0%, #1a3a85 100%);
-        border-radius: 10px; padding: 16px 22px; margin-bottom: 16px; color: white;
-    }
+/* ── Headings ─────────────────────────────────────────────── */
+h1, h2, h3 { font-family: 'Sora', sans-serif !important; letter-spacing: -0.02em; }
+h1 { color: var(--ink) !important; font-size: 2rem !important; font-weight: 800 !important; }
+h2 { color: var(--ink) !important; font-size: 1.35rem !important; font-weight: 700 !important; }
+h3 { color: var(--ink) !important; font-size: 1.02rem !important; font-weight: 700 !important; }
 
-    /* Investor type selector */
-    .investor-box {
-        border: 2px solid #e0e7ef; border-radius: 12px; padding: 18px 22px;
-        background: #ffffff; cursor: pointer; transition: all 0.2s;
-    }
-    .investor-box.active { border-color: #0B1D51; background: #f0f4ff; }
-    .investor-box h4 { color: #0B1D51; margin: 0 0 6px 0; font-size: 1rem; }
-    .investor-box p { color: #5a7199; font-size: 0.83rem; margin: 0; }
+/* signature "wick" tick in front of every section h2/h3 */
+h2::before, h3::before {
+    content: "";
+    display: inline-block;
+    width: 4px; height: 1em;
+    background: var(--teal);
+    border-radius: 3px;
+    margin-right: 9px;
+    vertical-align: -0.1em;
+}
 
-    /* Score display */
-    .score-block {
-        background: #ffffff; border-radius: 12px; padding: 20px;
-        border: 1px solid #e0e7ef; text-align: center;
-        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-    }
-    .score-num { font-size: 2.8rem; font-weight: 800; line-height: 1; }
-    .score-label { font-size: 0.78rem; color: #5a7199; text-transform: uppercase;
-                   letter-spacing: 0.06em; margin-top: 4px; font-weight: 600; }
-    .score-verdict { font-size: 0.88rem; font-weight: 600; margin-top: 8px; }
+/* ── Metric containers ────────────────────────────────────── */
+[data-testid="metric-container"] {
+    background: var(--surface);
+    border: 1px solid #EAEDF7;
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+}
+[data-testid="metric-container"] label {
+    color: var(--ink-soft) !important; font-size: 0.72rem;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+}
+[data-testid="metric-container"] [data-testid="metric-value"] {
+    color: var(--ink) !important; font-family: 'Sora', sans-serif;
+    font-size: 1.25rem !important; font-weight: 700;
+}
 
-    /* Criteria row */
-    .criteria-row {
-        display: flex; align-items: flex-start; gap: 12px;
-        padding: 10px 0; border-bottom: 1px solid #f1f5f9;
-    }
-    .criteria-icon { font-size: 1rem; min-width: 22px; margin-top: 1px; }
-    .criteria-name { font-weight: 600; color: #0B1D51; font-size: 0.88rem; }
-    .criteria-detail { color: #5a7199; font-size: 0.82rem; margin-top: 2px; }
-    .criteria-pts { font-size: 0.8rem; color: #2563eb; font-weight: 700;
-                    margin-left: auto; white-space: nowrap; padding-left: 12px; }
+/* ── Quote banner ─────────────────────────────────────────── */
+.quote-banner {
+    background: linear-gradient(120deg, var(--indigo), #7C6FF0);
+    border-radius: var(--radius);
+    padding: 16px 24px; margin-bottom: 20px;
+    font-style: italic; color: #EDEBFF; font-size: 0.94rem;
+    box-shadow: var(--shadow);
+}
 
-    .footer {
-        text-align:center; color:#94a3b8; font-size:0.78rem;
-        padding:24px 0 8px 0; border-top:1px solid #e0e7ef; margin-top:40px;
-    }
+/* ── Section cards ────────────────────────────────────────── */
+.section-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 22px; margin-bottom: 16px;
+    border: 1px solid #EAEDF7;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s ease;
+}
+.section-card:hover { box-shadow: var(--shadow); }
 
-    /* ── Broker cards ─────────────────────────────────────────────────────── */
-    .broker-card {
-        background:#ffffff; border:1px solid #e0e7ef; border-radius:12px;
-        padding:16px; margin-bottom:10px; text-align:center;
-        box-shadow:0 1px 6px rgba(0,0,0,0.05);
-    }
-    .broker-avatar {
-        width:56px; height:56px; border-radius:50%; object-fit:cover;
-        border:1px solid #e0e7ef; margin:0 auto 10px auto; display:block;
-        background:#ffffff;
-    }
-    .broker-name { font-weight:700; color:#0B1D51; font-size:0.86rem; line-height:1.25;
-                   min-height:42px; display:flex; align-items:center; justify-content:center; }
-    .broker-fee  { color:#5a7199; font-size:0.78rem; margin:4px 0 10px 0; }
-    .broker-contact { color:#5a7199; font-size:0.74rem; text-align:left; margin-top:8px; line-height:1.6; }
+/* ── Status tags → soft pills ─────────────────────────────── */
+.tag-good { background:#DCFCF5; color:#0F7A6C; padding:3px 12px; border-radius:999px; font-size:0.76rem; font-weight:700; }
+.tag-ok   { background:#FEF3D9; color:#9A6B0C; padding:3px 12px; border-radius:999px; font-size:0.76rem; font-weight:700; }
+.tag-bad  { background:#FFE4E1; color:#C43D2E; padding:3px 12px; border-radius:999px; font-size:0.76rem; font-weight:700; }
 
-    .broker-detail-panel {
-        background:#ffffff; border:1px solid #e0e7ef; border-radius:12px;
-        padding:20px; box-shadow:0 1px 6px rgba(0,0,0,0.05); position:sticky; top:12px;
-    }
-    .broker-badge {
-        display:inline-block; background:#e0e9ff; color:#1a3a85; font-size:0.7rem;
-        font-weight:700; padding:2px 10px; border-radius:14px; margin-top:2px;
-    }
-    .broker-detail-avatar {
-        width:54px; height:54px; border-radius:50%; object-fit:cover;
-        border:1px solid #e0e7ef; float:left; margin-right:12px;
-    }
-    .broker-min-box {
-        background:#dcfce7; color:#166534; border-radius:8px; padding:10px 14px;
-        font-weight:700; font-size:0.9rem; margin-top:6px;
-    }
+/* ── Tabs → segmented pill control ───────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    background: var(--surface-alt);
+    border-radius: 999px;
+    padding: 4px;
+    gap: 2px;
+}
+.stTabs [role="tab"] {
+    color: var(--ink-soft); font-weight: 600; font-size: 0.86rem;
+    border-radius: 999px !important; padding: 6px 18px !important;
+}
+.stTabs [role="tab"][aria-selected="true"] {
+    color: #FFFFFF; background: var(--indigo) !important; border-bottom: none !important;
+}
+
+.stSelectbox label, .stSlider label, .stMultiSelect label, .stRadio label {
+    color: var(--ink) !important; font-weight: 600; font-size: 0.84rem;
+}
+
+/* ── Company header ───────────────────────────────────────── */
+.company-header {
+    background: linear-gradient(120deg, var(--ink) 0%, var(--indigo-deep) 100%);
+    border-radius: var(--radius); padding: 18px 24px; margin-bottom: 16px; color: white;
+    box-shadow: var(--shadow);
+}
+
+/* ── Investor type selector ───────────────────────────────── */
+.investor-box {
+    border: 2px solid #EAEDF7; border-radius: var(--radius); padding: 18px 22px;
+    background: var(--surface); cursor: pointer; transition: all 0.2s;
+}
+.investor-box.active { border-color: var(--indigo); background: var(--surface-alt); }
+.investor-box h4 { color: var(--ink); margin: 0 0 6px 0; font-size: 1rem; font-family: 'Sora', sans-serif; }
+.investor-box p { color: var(--ink-soft); font-size: 0.83rem; margin: 0; }
+
+/* ── Score display ────────────────────────────────────────── */
+.score-block {
+    background: var(--surface); border-radius: var(--radius); padding: 22px;
+    border: 1px solid #EAEDF7; text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+.score-num { font-family: 'Sora', sans-serif; font-size: 2.9rem; font-weight: 800; line-height: 1; }
+.score-label { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase;
+               letter-spacing: 0.07em; margin-top: 6px; font-weight: 700; }
+.score-verdict { font-size: 0.87rem; font-weight: 700; margin-top: 10px; }
+
+/* ── Criteria row ─────────────────────────────────────────── */
+.criteria-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 0; border-bottom: 1px solid var(--surface-alt);
+}
+.criteria-icon { font-size: 1rem; min-width: 22px; margin-top: 1px; }
+.criteria-name { font-weight: 700; color: var(--ink); font-size: 0.88rem; }
+.criteria-detail { color: var(--ink-soft); font-size: 0.82rem; margin-top: 2px; }
+.criteria-pts { font-size: 0.8rem; color: var(--indigo); font-weight: 700;
+                margin-left: auto; white-space: nowrap; padding-left: 12px; }
+
+.footer {
+    text-align:center; color: var(--ink-soft); font-size:0.78rem;
+    padding:24px 0 8px 0; border-top:1px solid var(--surface-alt); margin-top:40px;
+}
+
+/* ── Broker cards ─────────────────────────────────────────── */
+.broker-card {
+    background: var(--surface); border:1px solid #EAEDF7; border-radius: var(--radius);
+    padding:18px; margin-bottom:10px; text-align:center;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.broker-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.broker-avatar {
+    width:56px; height:56px; border-radius:50%; object-fit:cover;
+    border:2px solid var(--surface-alt); margin:0 auto 10px auto; display:block;
+    background: var(--surface);
+}
+.broker-name { font-weight:700; color: var(--ink); font-size:0.86rem; line-height:1.25;
+               font-family: 'Sora', sans-serif;
+               min-height:42px; display:flex; align-items:center; justify-content:center; }
+.broker-fee  { color: var(--teal); font-weight: 700; font-size:0.78rem; margin:4px 0 10px 0; }
+.broker-contact { color: var(--ink-soft); font-size:0.74rem; text-align:left; margin-top:8px; line-height:1.6; }
+
+.broker-detail-panel {
+    background: var(--surface); border:1px solid #EAEDF7; border-radius: var(--radius);
+    padding:22px; box-shadow: var(--shadow); position:sticky; top:12px;
+}
+.broker-badge {
+    display:inline-block; background: var(--surface-alt); color: var(--indigo); font-size:0.7rem;
+    font-weight:700; padding:3px 12px; border-radius:999px; margin-top:2px;
+}
+.broker-detail-avatar {
+    width:54px; height:54px; border-radius:50%; object-fit:cover;
+    border:2px solid var(--surface-alt); float:left; margin-right:12px;
+}
+.broker-min-box {
+    background:#DCFCF5; color:#0F7A6C; border-radius:12px; padding:10px 14px;
+    font-weight:700; font-size:0.9rem; margin-top:6px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.stButton button {
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    border: 1px solid #EAEDF7 !important;
+}
+.stButton button:hover {
+    border-color: var(--indigo) !important;
+    color: var(--indigo) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
