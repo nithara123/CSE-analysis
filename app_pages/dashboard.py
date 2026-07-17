@@ -173,35 +173,22 @@ def render(data, companies, sectors, profile, go_to):
 
     st.divider()
 
-    if profile.get("wants_recommendations") == "Yes":
-        st.markdown("### Recommended For You")
-        st.caption("A quick starting shortlist based on Benjamin Graham scoring and your risk profile.")
-        candidates = []
-        sample_names = list(companies.keys())
-        random.Random(7).shuffle(sample_names)  # stable order across reruns
-        for name in sample_names[:40]:
-            fd = companies[name]
-            if available_years(fd) < 9:
-                continue
-            total, _ = score_defensive(fd)
-            if total >= 65:
-                candidates.append((name, fd, total))
-            if len(candidates) >= 6:
-                break
+    st.markdown("### Recommended For You")
+    st.caption(_recommendation_caption(profile))
+    candidates = _select_recommendations(companies, profile)
 
-        if not candidates:
-            st.info("Not enough scored companies yet to build a shortlist. Try Discover Companies instead.")
-        else:
-            cols = st.columns(3)
-            for i, (name, fd, total) in enumerate(candidates):
-                ai = compute_ai_recommendation(fd, investor_type="defensive")
-                with cols[i % 3]:
-                    st.markdown(f"""
-                    <div class="section-card">
-                        <div style="font-weight:700;color:#15172E;">{name}</div>
-                        <div style="color:#8B93AD;font-size:0.75rem;margin-bottom:8px;">{fd.get('sector','—')}</div>
-                        {recommendation_pill(ai['recommendation'])} {risk_pill(ai['risk_rating'])}
-                    </div>""", unsafe_allow_html=True)
-                    if st.button("View", key=f"dash_rec_{name}", use_container_width=True):
-                        st.session_state.workspace_company = name
-                        go_to("Company Workspace")
+    if not candidates:
+        st.info("Not enough companies match your profile yet for a shortlist. Try Discover Companies instead.")
+    else:
+        cols = st.columns(3)
+        for i, (name, fd, total, ai) in enumerate(candidates):
+            with cols[i % 3]:
+                st.markdown(f"""
+                <div class="section-card">
+                    <div style="font-weight:700;color:#15172E;">{name}</div>
+                    <div style="color:#8B93AD;font-size:0.75rem;margin-bottom:8px;">{fd.get('sector','—')}</div>
+                    {recommendation_pill(ai['recommendation'])} {risk_pill(ai['risk_rating'])}
+                </div>""", unsafe_allow_html=True)
+                if st.button("View", key=f"dash_rec_{name}", use_container_width=True):
+                    st.session_state.workspace_company = name
+                    go_to("Company Workspace")
