@@ -22,7 +22,7 @@ Usage from app.py:
 import streamlit as st
 from preferences import mark_onboarding_complete
 
-STEPS = ["experience", "cds", "type", "goal", "risk", "recommend"]
+STEPS = ["experience", "cds", "type", "goal", "risk"]
 
 
 def _init_state():
@@ -127,17 +127,8 @@ def render_onboarding():
         elif step == 4:
             st.markdown("### What's your risk appetite?")
             choice = st.radio("Risk appetite", ["Low", "Medium", "High"], label_visibility="collapsed", key="q_risk")
-            if st.button("Continue", type="primary"):
-                answers["risk_appetite"] = choice
-                _next_step()
-
-        elif step == 5:
-            st.markdown("### Would you like Investor 360 to recommend companies for you?")
-            choice = st.radio(
-                "Recommend companies", ["Yes", "No"], label_visibility="collapsed", key="q_recommend",
-            )
             if st.button("Finish Setup", type="primary"):
-                answers["wants_recommendations"] = choice
+                answers["risk_appetite"] = choice
                 wants_broker_guide = answers.pop("_wants_broker_guide", False)
                 mark_onboarding_complete(answers)
                 st.session_state.pop("onboarding_step", None)
