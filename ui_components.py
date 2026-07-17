@@ -50,7 +50,7 @@ def risk_pill(risk_rating):
 def render_company_card(company_name, fd, ai_result, in_portfolio=False, key_prefix=""):
     """
     Company card for Discover Companies: name, sector, price, AI score,
-    Graham result, news sentiment, risk, quick recommendation + actions.
+    Graham result, risk, quick recommendation + actions.
     Returns which button (if any) was clicked this run: "view" | "add" | None.
     """
     from graham_engine import get_series, latest, fmt
@@ -61,11 +61,6 @@ def render_company_card(company_name, fd, ai_result, in_portfolio=False, key_pre
     recommendation = ai_result["recommendation"]
     risk = ai_result["risk_rating"]
     graham_total = ai_result["graham_total"]
-
-    news_comp = next((c for c in ai_result["components"] if c["key"] == "news"), None)
-    news_label = "Not enough coverage"
-    if news_comp and news_comp["score"] is not None:
-        news_label = "Positive" if news_comp["score"] >= 60 else ("Negative" if news_comp["score"] <= 40 else "Neutral")
 
     st.markdown(f"""
     <div class="section-card" style="margin-bottom:12px;">
@@ -85,7 +80,6 @@ def render_company_card(company_name, fd, ai_result, in_portfolio=False, key_pre
         <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:0.8rem;color:#5a7199;">
             <div>AI Score: <strong style="color:#15172E;">{score:.0f}/100</strong></div>
             <div>Graham: <strong style="color:#15172E;">{graham_total}/100</strong></div>
-            <div>News: <strong style="color:#15172E;">{news_label}</strong></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -152,9 +146,57 @@ def render_criteria(criteria_list):
         </div>""", unsafe_allow_html=True)
 
 
+AI_COMPONENT_EXPLANATIONS = {
+    "graham": (
+        "This is the company's traditional Benjamin Graham score (Defensive or "
+        "Enterprising criteria, depending on how many years of data are "
+        "available), out of 100. It checks things like earnings consistency, "
+        "dividend history, financial strength, low debt, and valuation - "
+        "including the Margin of Safety and P/E limits, which is why there "
+        "isn't a separate 'Valuation' line; it's already folded into this "
+        "score. Because Graham's methodology is the foundation this app "
+        "is built on, it carries the largest single weight in the overall "
+        "AI Recommendation Score."
+    ),
+    "sector": (
+        "Compares this company's Graham score to the average Graham score of "
+        "its peers in the same sector. Scoring more than 5 points above the "
+        "sector average is treated as outperforming; more than 5 points below "
+        "is treated as underperforming. This rewards companies that are "
+        "genuinely strong relative to their industry, not just in isolation."
+    ),
+    "macro": (
+        "Reflects the broader Sri Lankan macroeconomic backdrop - inflation, "
+        "interest rates, and growth outlook - at the time the score was "
+        "calculated. This is the same for every company assessed at a given "
+        "time, since it's about the overall economic climate they're all "
+        "operating in, not something company-specific."
+    ),
+    "price_trend": (
+        "Looks at how the share price has moved over the available price "
+        "history: the percentage change from the start to the end of the "
+        "period. A +20% move over the period scores close to 100; a -20% "
+        "move scores close to 0. This is a momentum signal, not a valuation "
+        "one - a stock can score well here even if it looks expensive on "
+        "fundamentals, and vice versa."
+    ),
+    "volatility": (
+        "Measures how much the daily closing price has swung recently, using "
+        "the standard deviation of daily returns. Lower day-to-day swings "
+        "score higher (more stable), while sharper, more erratic price "
+        "movement scores lower. This feeds into the overall Risk rating "
+        "alongside the company's debt and liquidity ratios."
+    ),
+}
+
+
 def render_ai_components_breakdown(components):
-    """Bar-style breakdown of what fed into the AI Recommendation Score."""
+    """Bar-style breakdown of what fed into the AI Recommendation Score.
+    Each row gets a small expander underneath explaining, in plain English,
+    exactly how that component is calculated - so the score is educational
+    rather than a black-box number."""
     for c in components:
+        explanation = AI_COMPONENT_EXPLANATIONS.get(c["key"])
         if c["score"] is None:
             st.markdown(f"""
             <div class="criteria-row">
@@ -164,6 +206,9 @@ def render_ai_components_breakdown(components):
                     <div class="criteria-detail">Not available: {c['note']}</div>
                 </div>
             </div>""", unsafe_allow_html=True)
+            if explanation:
+                with st.expander(f"How is {c['name']} calculated?"):
+                    st.markdown(explanation)
             continue
         pct = c["score"]
         bar_color = "#16a34a" if pct >= 65 else ("#d97706" if pct >= 45 else "#dc2626")
@@ -178,6 +223,9 @@ def render_ai_components_breakdown(components):
             </div>
             <div class="criteria-detail" style="margin-top:4px;">{c['note']}</div>
         </div>""", unsafe_allow_html=True)
+        if explanation:
+            with st.expander(f"How is {c['name']} calculated?"):
+                st.markdown(explanation)
 
 
 def render_comparison_snapshot(company_name, ai_result, fd, is_winner=False):
@@ -186,8 +234,13 @@ def render_comparison_snapshot(company_name, ai_result, fd, is_winner=False):
     financial_health = "Strong" if fd_debt_ok(fd) else "Moderate"
     growth = "N/A"
     growth_series = get_series(fd, "growth", "eps_growth_yoy")
-    if growth_series:
-        avg_g = sum(growth_series.values()) / len(growth_series)
+    # Some companies' growth series can contain non-numeric placeholder
+    # entries (e.g. "N/A") for early years with no prior-year EPS to compare
+    # against. Filter to numeric values only before averaging, otherwise a
+    # single bad entry raises a TypeError and breaks the whole comparison.
+    numeric_growth = [v for v in growth_series.values() if isinstance(v, (int, float))]
+    if numeric_growth:
+        avg_g = sum(numeric_growth) / len(numeric_growth)
         growth = f"{avg_g:+.1%}"
 
     border = "border:2px solid #14B8A6;" if is_winner else "border:1px solid #EAEDF7;"
