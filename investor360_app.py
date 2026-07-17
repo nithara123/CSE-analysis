@@ -3,7 +3,7 @@ investor360_app.py — Investor 360 (redesigned)
 ====================================
 Thin orchestration layer only. All calculations live in graham_engine.py
 (untouched Graham logic) and ai_engine.py (new AI Recommendation Score).
-All page content lives in pages/*.py. This file's job is: load data once,
+All page content lives in app_pages/*.py. This file's job is: load data once,
 gate on onboarding, render the sidebar, and route to the selected page.
 
 Architecture map (what changed vs. the original single-file app.py):
@@ -29,7 +29,7 @@ import streamlit as st
 
 from preferences import load_profile, reset_onboarding
 from onboarding import render_onboarding
-from pages import dashboard, getting_started, discover, workspace, portfolio, market_dashboard, learning_centre
+from app_pages import dashboard, getting_started, discover, workspace, portfolio, market_dashboard, learning_centre
 
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
 
