@@ -28,12 +28,33 @@ import streamlit as st
 from graham_engine import available_years
 
 SESSION_KEY = "graham_profile_choice"
+# Same "pending override" trick investor360_app.py's go_to() uses for sidebar
+# navigation: Streamlit forbids writing directly to st.session_state[key] for
+# a widget that's already been instantiated earlier in the same script run.
+# The sidebar's radio widget (which owns SESSION_KEY) is always drawn before
+# any page's render() function runs, so a page like Company Workspace can't
+# just do st.session_state[SESSION_KEY] = "Defensive" - it has to leave a
+# note here that render_profile_switcher() applies on the NEXT run, right
+# before it (re)creates the radio widget.
+PENDING_KEY = "graham_profile_pending_override"
 CHOICES = ["Auto", "Defensive", "Enterprising"]
 
 
 def get_profile_choice() -> str:
     """Current global choice: 'Auto' | 'Defensive' | 'Enterprising'."""
     return st.session_state.get(SESSION_KEY, "Auto")
+
+
+def queue_profile_change(choice: str):
+    """
+    Change the global investor profile from anywhere in the app - e.g. the
+    Defensive/Enterprising buttons on Company Workspace - not just the
+    sidebar widget itself. Triggers a rerun; the new choice takes effect
+    (and the sidebar radio updates to match) as soon as
+    render_profile_switcher() runs again.
+    """
+    st.session_state[PENDING_KEY] = choice
+    st.rerun()
 
 
 def resolve_investor_type(fd: dict) -> str:
@@ -56,6 +77,9 @@ def render_profile_switcher():
     Renders the sidebar control that lets the user switch between Defensive,
     Enterprising, and Auto. Call this once from investor360_app.py.
     """
+    if PENDING_KEY in st.session_state:
+        st.session_state[SESSION_KEY] = st.session_state.pop(PENDING_KEY)
+
     st.markdown("**Investor Profile**")
     st.radio(
         "Score companies using...",
