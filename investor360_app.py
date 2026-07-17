@@ -3,7 +3,7 @@ investor360_app.py — Investor 360 (redesigned)
 ====================================
 Thin orchestration layer only. All calculations live in graham_engine.py
 (untouched Graham logic) and ai_engine.py (new AI Recommendation Score).
-All page content lives in app_pages/*.py. This file's job is: load data once,
+All page content lives in pages/*.py. This file's job is: load data once,
 gate on onboarding, render the sidebar, and route to the selected page.
 
 Architecture map (what changed vs. the original single-file app.py):
@@ -134,6 +134,15 @@ companies = data.get("companies", {})
 brokers = data.get("brokers", [])
 sectors = data.get("sectors", {})
 
+# The counts shown around the app (Dashboard metrics, sidebar summary) must
+# always reflect what's actually in the loaded data, not a stale number that
+# was hand-typed into the JSON's "meta" block at some earlier point. Recompute
+# them here, once, so every page that reads data["meta"][...] gets the truth.
+data.setdefault("meta", {})
+data["meta"]["total_companies"] = len(companies)
+data["meta"]["total_brokers"] = len(brokers)
+data["meta"]["total_sectors"] = len(sectors)
+
 
 # ── Onboarding gate ────────────────────────────────────────────────────────────
 profile = load_profile()
@@ -164,14 +173,19 @@ with st.sidebar:
     st.markdown("## Investor 360")
     st.markdown("*Colombo Stock Exchange Analytics*")
     st.divider()
-    page = st.radio(
+    # IMPORTANT: the radio's key IS "current_page" (the same variable every
+    # button's go_to() writes to), not a separate "nav_radio" key. Streamlit
+    # widgets with a key ignore the `index=` argument on every rerun after
+    # the first, and instead keep whatever value is already in
+    # st.session_state[key]. With a separate key, clicking any Quick Action /
+    # "Go to ..." button would set current_page, rerun, and then this widget
+    # would immediately snap back to its own stale "nav_radio" value and undo
+    # the navigation - which is why none of those buttons appeared to work.
+    # Using the same key for both means there's only one source of truth.
+    st.radio(
         "", NAV_PAGES, label_visibility="collapsed",
-        index=NAV_PAGES.index(st.session_state.current_page),
-        key="nav_radio",
+        key="current_page",
     )
-    if page != st.session_state.current_page:
-        st.session_state.current_page = page
-        st.rerun()
 
     st.divider()
     st.markdown(f"""
