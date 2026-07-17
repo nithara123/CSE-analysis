@@ -205,8 +205,24 @@ def compute_ai_recommendation(fd, investor_type="defensive",
         final_score = sum(available[k] * (WEIGHTS[k] / available_weight) for k in available)
     final_score = round(max(0.0, min(100.0, final_score)), 1)
 
-    # Debt ratio / current ratio from Graham's own criteria feed the risk rating,
-    # combined with recent price volatility when available.
+    # Debt ratio / current ratio from Graham's own criteria are the risk
+    # rating's ONLY inputs. This is deliberate: these fundamentals are
+    # always available (they come straight from the loaded JSON), so the
+    # risk badge is identical for a given company no matter which page
+    # you're looking at it from.
+    #
+    # Recent price volatility is still surfaced (see vol_risk_label /
+    # vol_note below) as its own "Volatility / Stability" line in the AI
+    # score breakdown - it's just deliberately kept OUT of this headline
+    # risk_rating. Volatility is only ever computed on the Company
+    # Workspace page (it requires a live price-history fetch per company,
+    # which isn't done for every card on Discover/Portfolio for
+    # performance reasons). Letting it feed risk_rating meant the exact
+    # same company could show "Low Risk" on Discover Companies (no price
+    # data fetched -> fundamentals only) and "High Risk" on Company
+    # Workspace (price data fetched -> volatility pushed it up) - a
+    # confusing, contradictory bug. Keeping risk_rating fundamentals-only
+    # fixes that: it's the same badge everywhere.
     dr_v = latest(get_series(fd, "ratios", "debt_ratio"))
     cr_v = latest(get_series(fd, "ratios", "current_ratio"))
     fundamentals_risk = "Low"
@@ -214,9 +230,7 @@ def compute_ai_recommendation(fd, investor_type="defensive",
         fundamentals_risk = "High"
     elif (dr_v is not None and dr_v >= 0.5) or (cr_v is not None and cr_v < 1.5):
         fundamentals_risk = "Medium"
-    risk_order = {"Low": 0, "Medium": 1, "High": 2}
-    risk_rating = max([fundamentals_risk] + ([vol_risk_label] if vol_risk_label else []),
-                       key=lambda r: risk_order[r])
+    risk_rating = fundamentals_risk
 
     graham_note = f"a Graham {investor_type} score of {graham_total}/100"
     if val_note:
@@ -241,8 +255,11 @@ def compute_ai_recommendation(fd, investor_type="defensive",
     if used_notes:
         joined = "; ".join(used_notes[:-1]) + (f"; and {used_notes[-1]}" if len(used_notes) > 1 else used_notes[0])
         explanation_parts.append(f"The score reflects {joined}.")
-    explanation_parts.append(f"Overall risk is rated **{risk_rating}**, based on leverage, liquidity"
-                              + (" and recent price volatility." if vol_risk_label else "."))
+    explanation_parts.append(f"Overall risk is rated **{risk_rating}**, based on leverage and liquidity "
+                              "(debt ratio and current ratio) - this stays the same everywhere the company "
+                              "appears in the app."
+                              + (f" Recent price movement has also been {vol_note}, which is factored into "
+                                 "the score above but does not change the risk rating." if vol_risk_label else ""))
     if skipped:
         pretty = {"graham": "Graham score", "sector": "sector comparison",
                   "macro": "macroeconomic conditions", "price_trend": "price trend",
