@@ -11,8 +11,9 @@ card: top companies, average scores, recent news, outlook).
 import streamlit as st
 import plotly.graph_objects as go
 
-from graham_engine import get_series, latest, score_defensive, available_years
+from graham_engine import get_series, latest, score_defensive, score_enterprising, available_years
 from ai_engine import compute_ai_recommendation
+from investor_profile import resolve_investor_type
 from macro_signals import fetch_live_usd_lkr
 from news_intelligence import render_market_intelligence
 
@@ -60,11 +61,9 @@ def _render_sector_profiles(companies, sectors):
         fd = companies.get(name, {})
         if not fd:
             continue
-        if available_years(fd) >= 9:
-            total, _ = score_defensive(fd)
-        else:
-            total, _ = score_defensive(fd)  # still show a Graham reference score even if partial
-        ai = compute_ai_recommendation(fd, investor_type="defensive" if available_years(fd) >= 9 else "enterprising")
+        inv_type = resolve_investor_type(fd)
+        total, _ = score_defensive(fd) if inv_type == "defensive" else score_enterprising(fd)
+        ai = compute_ai_recommendation(fd, investor_type=inv_type)
         scored.append((name, fd, total, ai))
 
     if not scored:
