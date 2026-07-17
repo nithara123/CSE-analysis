@@ -12,12 +12,11 @@ from graham_engine import score_defensive, score_enterprising, available_years
 from ai_engine import compute_ai_recommendation
 from ui_components import render_company_card
 from portfolio_store import load_portfolio, add_company
+from investor_profile import resolve_investor_type
 
 
 def _ai_for(fd):
-    if available_years(fd) >= 9:
-        return compute_ai_recommendation(fd, investor_type="defensive")
-    return compute_ai_recommendation(fd, investor_type="enterprising")
+    return compute_ai_recommendation(fd, investor_type=resolve_investor_type(fd))
 
 
 def render(data, companies, sectors, profile, go_to):
