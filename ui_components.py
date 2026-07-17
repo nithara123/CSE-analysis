@@ -70,7 +70,7 @@ def render_company_card(company_name, fd, ai_result, in_portfolio=False, key_pre
                 <div style="color:#8B93AD;font-size:0.78rem;margin-top:2px;">{sector}</div>
             </div>
             <div style="text-align:right;">
-                <div style="font-weight:800;font-size:1.3rem;color:#15172E;font-family:'Sora',sans-serif;">{fmt(mp, 'LKR ')}</div>
+                <div style="font-weight:800;font-size:0.95rem;color:#15172E;font-family:'Sora',sans-serif;">{fmt(mp, 'LKR ')}</div>
             </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
