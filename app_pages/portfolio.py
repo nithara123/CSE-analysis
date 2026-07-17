@@ -13,10 +13,11 @@ from graham_engine import get_series, latest, fmt, available_years, score_defens
 from ai_engine import compute_ai_recommendation
 from ui_components import recommendation_pill, risk_pill, render_comparison_snapshot
 from portfolio_store import load_portfolio, add_company, remove_company
+from investor_profile import resolve_investor_type
 
 
 def _ai_for(fd):
-    inv_type = "defensive" if available_years(fd) >= 9 else "enterprising"
+    inv_type = resolve_investor_type(fd)
     return inv_type, compute_ai_recommendation(fd, investor_type=inv_type)
 
 
@@ -51,12 +52,15 @@ def render(data, companies, sectors, profile, go_to):
 
     for name, fd, inv_type, ai in rows_data:
         mp = latest(get_series(fd, "market_metrics", "market_price"))
+        defensive_total, _ = score_defensive(fd)
+        enterprising_total, _ = score_enterprising(fd)
         c1, c2, c3, c4, c5, c6 = st.columns([2, 1, 1, 1, 1, 1])
         c1.markdown(f"**{name}**  \n<span style='color:#8B93AD;font-size:0.78rem;'>{fd.get('sector','—')}</span>", unsafe_allow_html=True)
         c2.markdown(fmt(mp, "LKR "))
-        c3.markdown(f"AI {ai['score']:.0f}/100")
-        c4.markdown(f"Graham {ai['graham_total']}/100")
+        c3.markdown(f"Defensive {defensive_total}/100")
+        c4.markdown(f"Enterprising {enterprising_total}/100")
         c5.markdown(recommendation_pill(ai["recommendation"]), unsafe_allow_html=True)
+        c5.caption(f"as {'Defensive' if inv_type == 'defensive' else 'Enterprising'} Investor")
         with c6:
             b1, b2 = st.columns(2)
             with b1:
