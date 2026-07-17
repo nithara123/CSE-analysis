@@ -20,7 +20,7 @@ from ui_components import (
     render_ai_score_card, render_ai_components_breakdown,
 )
 from metric_info import render_metric_info, METRICS
-from investor_profile import resolve_investor_type
+from investor_profile import resolve_investor_type, get_profile_choice, queue_profile_change
 from portfolio_store import load_portfolio, add_company, remove_company
 from cse_price_chart import render_price_movement_section, fetch_best_daily_price_history
 from macro_signals import estimate_macro_outlook
@@ -201,6 +201,32 @@ def render(data, companies, sectors, profile, go_to):
             {risk_pill(ai_result['risk_rating'])}
         </div>
     </div>""", unsafe_allow_html=True)
+
+    # ── Defensive / Enterprising switch ─────────────────────────────────────
+    # Lets you flip between Graham's two methodologies right here, without
+    # digging into the sidebar. This changes the SAME global choice the
+    # sidebar's "Investor Profile" control uses, so it applies everywhere
+    # else in the app too (Discover, Portfolio, Dashboard, Market Dashboard) -
+    # not just on this one company's page.
+    global_choice = get_profile_choice()
+    effective = "Defensive" if investor_type == "defensive" else "Enterprising"
+    st.write("")
+    st.markdown("**View this company as a...**")
+    bcol1, bcol2 = st.columns(2)
+    with bcol1:
+        if st.button("Defensive Investor", key="workspace_pick_defensive", use_container_width=True,
+                     type="primary" if effective == "Defensive" else "secondary"):
+            queue_profile_change("Defensive")
+    with bcol2:
+        if st.button("Enterprising Investor", key="workspace_pick_enterprising", use_container_width=True,
+                     type="primary" if effective == "Enterprising" else "secondary"):
+            queue_profile_change("Enterprising")
+    if global_choice == "Auto":
+        st.caption(f"Currently on **Auto** — {company_name} has {available_years(fd)} year(s) of data on file, "
+                    f"so it's being scored as a **{effective} Investor** for now. Pick a button above to lock "
+                    "one methodology in everywhere in the app, or change it anytime from the sidebar.")
+    else:
+        st.caption("This choice applies app-wide - change it anytime from here or the sidebar.")
 
     if st.button("Remove from Portfolio" if in_portfolio else "Add to Portfolio"):
         if in_portfolio:
