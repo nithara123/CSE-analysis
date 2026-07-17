@@ -10,7 +10,7 @@ onboarding) a short list of AI-recommended companies to explore next.
 import random
 import streamlit as st
 
-from graham_engine import get_series, latest, fmt, score_defensive, available_years
+from graham_engine import get_series, latest, fmt, score_defensive, score_enterprising, available_years
 from ai_engine import compute_ai_recommendation
 from ui_components import recommendation_pill, risk_pill
 from portfolio_store import load_portfolio
@@ -29,6 +29,79 @@ def _quote():
         st.session_state.quote = random.choice(QUOTES)
     return st.session_state.quote
 
+
+# ── Personalized "Recommended For You" shortlist ────────────────────────────
+# Every answer from onboarding that isn't purely cosmetic feeds into this:
+#   - investor_type -> which Graham methodology is even eligible to appear
+#     (Beginners only see Defensive-scored, well-established companies;
+#     Intermediate/Experienced also see Enterprising-scored companies,
+#     which by nature include smaller, higher-growth, higher-risk names).
+#   - risk_appetite  -> the score threshold to clear, and the ceiling on
+#     how much risk is allowed into the shortlist at all.
+#   - investment_goal -> the sort order applied to whatever clears the bar
+#     (dividend yield for income-seekers, EPS growth for growth-seekers,
+#     overall score otherwise).
+# Two users with different answers can and will see a different shortlist -
+# this is not just relabeling the same fixed list.
+
+def _risk_profile(risk_appetite):
+    if risk_appetite == "Low":
+        return 65, {"Low"}
+    if risk_appetite == "High":
+        return 45, {"Low", "Medium", "High"}
+    return 55, {"Low", "Medium"}  # Medium / unanswered
+
+
+def _select_recommendations(companies, profile, limit=6, pool_size=40):
+    investor_type = profile.get("investor_type") or "Beginner"
+    allow_enterprising = investor_type in ("Intermediate", "Experienced")
+    min_score, allowed_risk = _risk_profile(profile.get("risk_appetite"))
+    goal = profile.get("investment_goal")
+
+    sample_names = list(companies.keys())
+    random.Random(7).shuffle(sample_names)  # stable order across reruns
+
+    candidates = []
+    for name in sample_names:
+        fd = companies[name]
+        established = available_years(fd) >= 9
+        if not established and not allow_enterprising:
+            continue  # Beginners: stick to companies with a long, provable track record
+        inv_type = "defensive" if established else "enterprising"
+        total, _ = score_defensive(fd) if inv_type == "defensive" else score_enterprising(fd)
+        if total is None or total < min_score:
+            continue
+        ai = compute_ai_recommendation(fd, investor_type=inv_type)
+        if ai["risk_rating"] not in allowed_risk:
+            continue
+        candidates.append((name, fd, total, ai))
+        if len(candidates) >= pool_size:
+            break
+
+    if goal == "Dividend Income":
+        candidates.sort(key=lambda c: -(latest(get_series(c[1], "income_statement", "dividend_per_share")) or 0))
+    elif goal in ("Long-term Growth", "Capital Appreciation"):
+        def _avg_growth(fd):
+            vals = [v for v in get_series(fd, "growth", "eps_growth_yoy").values() if isinstance(v, (int, float))]
+            return sum(vals) / len(vals) if vals else -999
+        candidates.sort(key=lambda c: -_avg_growth(c[1]))
+    else:
+        candidates.sort(key=lambda c: -c[2])
+
+    return candidates[:limit]
+
+
+def _recommendation_caption(profile):
+    bits = []
+    if profile.get("investor_type"):
+        bits.append(f"{profile['investor_type'].lower()} investor")
+    if profile.get("risk_appetite"):
+        bits.append(f"{profile['risk_appetite'].lower()} risk appetite")
+    if profile.get("investment_goal") and profile["investment_goal"] != "Undecided":
+        bits.append(f"a focus on {profile['investment_goal'].lower()}")
+    if not bits:
+        return "A quick starting shortlist based on Benjamin Graham scoring."
+    return "Tailored to your profile — " + ", ".join(bits) + "."
 
 def render(data, companies, sectors, profile, go_to):
     q_text, q_author = _quote()
