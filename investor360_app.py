@@ -173,19 +173,31 @@ with st.sidebar:
     st.markdown("## Investor 360")
     st.markdown("*Colombo Stock Exchange Analytics*")
     st.divider()
-    # IMPORTANT: the radio's key IS "current_page" (the same variable every
-    # button's go_to() writes to), not a separate "nav_radio" key. Streamlit
-    # widgets with a key ignore the `index=` argument on every rerun after
-    # the first, and instead keep whatever value is already in
-    # st.session_state[key]. With a separate key, clicking any Quick Action /
-    # "Go to ..." button would set current_page, rerun, and then this widget
-    # would immediately snap back to its own stale "nav_radio" value and undo
-    # the navigation - which is why none of those buttons appeared to work.
-    # Using the same key for both means there's only one source of truth.
-    st.radio(
+    # Two different session_state keys are involved here on purpose:
+    #   - "current_page": a plain variable, not tied to any widget. go_to()
+    #     (called from buttons all over the app, e.g. "Getting Started
+    #     Guide") writes to THIS one, and it's always safe to write to at
+    #     any point in the script.
+    #   - "nav_radio": the radio widget's own key. Streamlit will raise a
+    #     StreamlitAPIException if you write to a widget's key AFTER that
+    #     widget has already been drawn in the same script run - which is
+    #     exactly what happened when current_page and the widget key were
+    #     the same thing (go_to() runs deep inside a page, i.e. after the
+    #     sidebar has already rendered this run).
+    # The fix: sync nav_radio FROM current_page right here, immediately
+    # before the widget is created - never after. That's the one point in
+    # the script where it's legal to set it, and it's exactly what makes a
+    # go_to() call from a button actually change what the radio shows.
+    if st.session_state.get("nav_radio") != st.session_state.current_page:
+        st.session_state.nav_radio = st.session_state.current_page
+
+    page = st.radio(
         "", NAV_PAGES, label_visibility="collapsed",
-        key="current_page",
+        key="nav_radio",
     )
+    if page != st.session_state.current_page:
+        st.session_state.current_page = page
+        st.rerun()
 
     st.divider()
     st.markdown(f"""
