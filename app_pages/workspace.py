@@ -14,17 +14,18 @@ from graham_engine import (
     get_series, latest, fmt, fmt_large, available_years,
     score_defensive, score_enterprising,
 )
-from ai_engine import compute_ai_recommendation, natural_language_summary
+from ai_engine import compute_ai_recommendation, natural_language_summary, compute_sector_average_graham
 from ui_components import (
     recommendation_pill, risk_pill, small_metric, render_criteria,
     render_ai_score_card, render_ai_components_breakdown,
 )
 from metric_info import render_metric_info, METRICS
 from portfolio_store import load_portfolio, add_company, remove_company
-from cse_price_chart import render_price_movement_section
+from cse_price_chart import render_price_movement_section, fetch_best_daily_price_history
+from macro_signals import estimate_macro_outlook
 from news_intelligence import (
     SRI_LANKA_FEEDS, GLOBAL_FEEDS, fetch_region, detect_companies,
-    score_sentiment, time_ago,
+    detect_sectors, score_sentiment, time_ago,
 )
 
 # Which Graham criterion name maps to which metric_info entry, so the
@@ -67,15 +68,41 @@ def _classify_doc_type(text):
     return "Press Releases"
 
 
-def _company_news(company_name, fd, companies):
+def _all_news_items():
+    return fetch_region(tuple(SRI_LANKA_FEEDS.items())) + fetch_region(tuple(GLOBAL_FEEDS.items()))
+
+
+def _company_news(company_name, fd, companies, items):
     single = {company_name: fd}
-    items = fetch_region(tuple(SRI_LANKA_FEEDS.items())) + fetch_region(tuple(GLOBAL_FEEDS.items()))
     matched = []
     for item in items:
         text = f"{item['title']} {item['summary']}"
         if company_name in detect_companies(text, single):
             matched.append(item)
     return matched
+
+
+def _sector_news(sector_name, items):
+    """Articles that mention this company's sector generally, even when no
+    article names the company directly. Kept as a SEPARATE, clearly-labelled
+    section rather than folded into the company's own News tab or into the
+    AI engine's news_sentiment_counts - sector chatter isn't the same signal
+    as coverage of the company itself, and treating it as such would
+    overstate how much is actually known about this specific company."""
+    if not sector_name:
+        return []
+    matched = []
+    for item in items:
+        text = f"{item['title']} {item['summary']}"
+        if sector_name in detect_sectors(text):
+            matched.append(item)
+    return matched
+
+
+@st.cache_data(show_spinner=False)
+def _cached_sector_avg_score(sector_name, investor_type, _companies, _sectors):
+    peer_names = _sectors.get(sector_name, {}).get("companies", [])
+    return compute_sector_average_graham(peer_names, _companies, investor_type)
 
 
 def render(data, companies, sectors, profile, go_to):
@@ -101,9 +128,11 @@ def render(data, companies, sectors, profile, go_to):
     else:
         graham_total, criteria = score_enterprising(fd)
 
-    # ── company-scoped news, fetched once per session-load (cached inside fetch_region) ──
+    # ── news pool, fetched once per session-load (cached inside fetch_region) ──
     with st.spinner("Checking recent news..."):
-        news_items = _company_news(company_name, fd, companies)
+        all_items = _all_news_items()
+        news_items = _company_news(company_name, fd, companies, all_items)
+        sector_news_items = _sector_news(fd.get("sector"), all_items)
 
     pos = neu = neg = 0
     for it in news_items:
@@ -114,9 +143,28 @@ def render(data, companies, sectors, profile, go_to):
             neg += 1
         else:
             neu += 1
-    news_counts = {"positive": pos, "neutral": neu, "negative": neg}
+    # Only genuine company-specific mentions feed the AI score's news signal
+    # (see _sector_news docstring for why sector chatter is kept separate).
+    news_counts = {"positive": pos, "neutral": neu, "negative": neg} if news_items else None
 
-    ai_result = compute_ai_recommendation(fd, investor_type=investor_type, news_sentiment_counts=news_counts)
+    # ── price history -> trend + volatility signals ────────────────────────
+    with st.spinner("Loading price history..."):
+        price_df = fetch_best_daily_price_history(fd.get("symbol"))
+    price_series = price_df["Close"].dropna().tolist() if not price_df.empty else None
+
+    # ── sector benchmark (average Graham score across sector peers) ────────
+    sector_avg_score = _cached_sector_avg_score(fd.get("sector"), investor_type, companies, sectors)
+
+    # ── macro backdrop (see macro_signals.py for what this is/isn't) ───────
+    macro_outlook = estimate_macro_outlook()
+
+    ai_result = compute_ai_recommendation(
+        fd, investor_type=investor_type,
+        news_sentiment_counts=news_counts,
+        price_series=price_series,
+        sector_avg_score=sector_avg_score,
+        macro_outlook=macro_outlook,
+    )
 
     mp = latest(get_series(fd, "market_metrics", "market_price"))
     mp_series = get_series(fd, "market_metrics", "market_price")
@@ -238,7 +286,9 @@ def render(data, companies, sectors, profile, go_to):
     # ── News ──────────────────────────────────────────────────────────────────
     st.markdown("### News")
     if not news_items:
-        st.info("No recent news mentioning this company was found in the connected feeds.")
+        st.info("No recent news mentioning this company by name was found in the connected feeds. "
+                 "Check the **Sector News** tab below for broader coverage of "
+                 f"{fd.get('sector', 'this sector')} that may still be relevant.")
     else:
         n_pos = [i for i in news_items if score_sentiment(f"{i['title']} {i['summary']}")[0] == "Positive"]
         n_neu = [i for i in news_items if score_sentiment(f"{i['title']} {i['summary']}")[0] == "Neutral"]
@@ -262,6 +312,15 @@ def render(data, companies, sectors, profile, go_to):
                     st.markdown(f"**{bucket}** ({len(items)})")
                     for item in items[:10]:
                         _render_news_row(item)
+
+    st.markdown("#### Sector News")
+    st.caption(f"Broader coverage mentioning the {fd.get('sector', '—')} sector generally - useful context, "
+               "but not necessarily about this company specifically.")
+    if not sector_news_items:
+        st.caption("No recent sector-level articles found in the connected feeds either.")
+    else:
+        for item in sector_news_items[:10]:
+            _render_news_row(item)
 
 
 def _render_news_row(item):
