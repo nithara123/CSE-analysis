@@ -66,8 +66,8 @@ def render_company_card(company_name, fd, ai_result, in_portfolio=False, key_pre
     <div class="section-card" style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
-                <div style="font-weight:700;color:#15172E;font-size:1rem;font-family:'Sora',sans-serif;">{company_name}</div>
-                <div style="color:#8B93AD;font-size:0.78rem;margin-top:2px;">{sector}</div>
+                <div style="font-weight:700;color:#15172E;font-size:0.90rem;font-family:'Sora',sans-serif;">{company_name}</div>
+                <div style="color:#8B93AD;font-size:0.72rem;margin-top:2px;">{sector}</div>
             </div>
             <div style="text-align:right;">
                 <div style="font-weight:800;font-size:0.95rem;color:#15172E;font-family:'Sora',sans-serif;">{fmt(mp, 'LKR ')}</div>
