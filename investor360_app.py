@@ -29,6 +29,7 @@ import streamlit as st
 
 from preferences import load_profile, reset_onboarding
 from onboarding import render_onboarding
+from investor_profile import render_profile_switcher
 from app_pages import dashboard, getting_started, discover, workspace, portfolio, market_dashboard, learning_centre
 
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
@@ -190,6 +191,9 @@ with st.sidebar:
         "", NAV_PAGES, label_visibility="collapsed",
         key="nav_radio",
     )
+
+    st.divider()
+    render_profile_switcher()
 
     st.divider()
     st.markdown(f"""
