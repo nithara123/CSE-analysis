@@ -30,7 +30,6 @@ DEFAULT_PROFILE = {
     "investor_type": None,             # "Beginner" / "Intermediate" / "Experienced"
     "investment_goal": None,           # "Long-term Growth" / "Dividend Income" / "Capital Appreciation" / "Undecided"
     "risk_appetite": None,             # "Low" / "Medium" / "High"
-    "wants_recommendations": None,     # "Yes" / "No"
     "completed_at": None,
 }
 
