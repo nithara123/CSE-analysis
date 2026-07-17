@@ -34,15 +34,38 @@ from graham_engine import (
 # These sum to 1.0. If a signal is unavailable its weight is
 # redistributed proportionally across the signals that ARE available,
 # rather than silently treating a missing signal as zero/negative.
+#
+# Valuation (margin of safety / P/E) is folded INTO the Graham component
+# rather than scored as its own separate line - it's already one of
+# Graham's own criteria (Margin of Safety >= 33%, P/E limits, etc.), so
+# scoring it twice double-counted the same signal. News Sentiment is not
+# used as a scored/weighted signal at all (it still appears as its own
+# section further down the Company Workspace page - it's just not part of
+# the numeric score), since reliable, dated coverage isn't available for
+# every company. Benjamin Graham's methodology is the backbone of this
+# score, so it carries the majority weight.
 WEIGHTS = {
-    "graham":      0.35,   # Benjamin Graham score (defensive or enterprising)
-    "valuation":   0.15,   # margin of safety / P/E, on top of Graham's own valuation checks
-    "news":        0.15,   # recent news sentiment
-    "sector":      0.10,   # how the company sits relative to its sector peers
+    "graham":      0.60,   # Benjamin Graham score, including margin of safety / valuation
+    "sector":      0.15,   # how the company sits relative to its sector peers
     "macro":       0.10,   # macroeconomic backdrop (inflation, rates, growth)
     "price_trend": 0.10,   # recent share price momentum
     "volatility":  0.05,   # inverse of recent price volatility (stability bonus)
 }
+
+
+def _valuation_note(fd):
+    """Margin of safety / P/E, folded into the Graham component's own note
+    rather than scored as a separate signal - Graham's criteria already
+    include a Margin of Safety and P/E check, so this only adds context
+    to the Graham note, never a second score for the same thing."""
+    mos = latest(get_series(fd, "graham_analysis", "margin_of_safety"))
+    pe = latest(get_series(fd, "market_metrics", "pe_ratio"))
+    notes = []
+    if mos is not None:
+        notes.append(f"a margin of safety of {mos:.1%}")
+    if pe is not None and pe > 0:
+        notes.append(f"a P/E ratio of {pe:.1f}")
+    return " and ".join(notes)
 
 
 def _graham_component(fd, investor_type):
@@ -51,45 +74,6 @@ def _graham_component(fd, investor_type):
     else:
         total, criteria = score_defensive(fd)
     return total, criteria  # already 0-100
-
-
-def _valuation_component(fd):
-    mos = latest(get_series(fd, "graham_analysis", "margin_of_safety"))
-    pe = latest(get_series(fd, "market_metrics", "pe_ratio"))
-    if mos is None and pe is None:
-        return None, "no valuation data available"
-    score = 50.0
-    notes = []
-    if mos is not None:
-        # +33% margin of safety -> full marks; 0% -> neutral; negative -> penalised
-        score = max(0.0, min(100.0, 50 + (mos / 0.33) * 50))
-        notes.append(f"margin of safety of {mos:.1%}")
-    if pe is not None and pe > 0:
-        pe_adj = max(0.0, min(100.0, 100 - (pe - 10) * 4))  # P/E 10 -> 100, P/E 35+ -> 0
-        score = (score + pe_adj) / 2 if mos is not None else pe_adj
-        notes.append(f"a P/E ratio of {pe:.1f}")
-    return round(score, 1), " and ".join(notes)
-
-
-def _news_component(news_sentiment_counts):
-    if not news_sentiment_counts:
-        return None, "no recent news coverage detected for this company"
-    pos = news_sentiment_counts.get("positive", 0)
-    neu = news_sentiment_counts.get("neutral", 0)
-    neg = news_sentiment_counts.get("negative", 0)
-    total = pos + neu + neg
-    if total == 0:
-        return None, "no recent news coverage detected for this company"
-    # Neutral counts as half-positive so a quiet, uneventful news cycle
-    # doesn't score identically to a genuinely negative one.
-    score = ((pos + 0.5 * neu) / total) * 100
-    if pos > neg:
-        tone = f"mostly positive recent coverage ({pos} positive vs {neg} negative article(s))"
-    elif neg > pos:
-        tone = f"mostly negative recent coverage ({neg} negative vs {pos} positive article(s))"
-    else:
-        tone = f"mixed/neutral recent coverage ({pos} positive, {neg} negative)"
-    return round(score, 1), tone
 
 
 def _sector_component(graham_total, sector_avg_score):
@@ -200,8 +184,7 @@ def compute_ai_recommendation(fd, investor_type="defensive",
         graham_total   float the underlying, unmodified Graham score (0-100)
     """
     graham_total, graham_criteria = _graham_component(fd, investor_type)
-    val_score, val_note = _valuation_component(fd)
-    news_score, news_note = _news_component(news_sentiment_counts)
+    val_note = _valuation_note(fd)
     sector_score, sector_note = _sector_component(graham_total, sector_avg_score)
     macro_score, macro_note = _macro_component(macro_outlook)
     price_score, price_change, price_note = _price_trend_component(price_series)
@@ -209,8 +192,6 @@ def compute_ai_recommendation(fd, investor_type="defensive",
 
     raw_components = {
         "graham":      graham_total,
-        "valuation":   val_score,
-        "news":        news_score,
         "sector":      sector_score,
         "macro":       macro_score,
         "price_trend": price_score,
@@ -237,16 +218,18 @@ def compute_ai_recommendation(fd, investor_type="defensive",
     risk_rating = max([fundamentals_risk] + ([vol_risk_label] if vol_risk_label else []),
                        key=lambda r: risk_order[r])
 
+    graham_note = f"a Graham {investor_type} score of {graham_total}/100"
+    if val_note:
+        graham_note += f", including {val_note}"
+
     notes = {
-        "graham": f"a Graham {investor_type} score of {graham_total}/100",
-        "valuation": val_note,
-        "news": news_note,
+        "graham": graham_note,
         "sector": sector_note,
         "macro": macro_note,
         "price_trend": price_note,
         "volatility": vol_note,
     }
-    used_notes = [notes[k] for k in ["graham", "valuation", "news", "sector", "macro", "price_trend", "volatility"]
+    used_notes = [notes[k] for k in ["graham", "sector", "macro", "price_trend", "volatility"]
                   if raw_components.get(k) is not None]
     skipped = [k for k, v in raw_components.items() if v is None]
 
@@ -261,9 +244,9 @@ def compute_ai_recommendation(fd, investor_type="defensive",
     explanation_parts.append(f"Overall risk is rated **{risk_rating}**, based on leverage, liquidity"
                               + (" and recent price volatility." if vol_risk_label else "."))
     if skipped:
-        pretty = {"graham": "Graham score", "valuation": "valuation", "news": "news sentiment",
-                  "sector": "sector comparison", "macro": "macroeconomic conditions",
-                  "price_trend": "price trend", "volatility": "volatility"}
+        pretty = {"graham": "Graham score", "sector": "sector comparison",
+                  "macro": "macroeconomic conditions", "price_trend": "price trend",
+                  "volatility": "volatility"}
         explanation_parts.append(
             "Note: " + ", ".join(pretty[k] for k in skipped) +
             (" were" if len(skipped) > 1 else " was") +
@@ -274,10 +257,6 @@ def compute_ai_recommendation(fd, investor_type="defensive",
     components = [
         {"name": "Benjamin Graham Score", "key": "graham", "score": raw_components["graham"],
          "weight": WEIGHTS["graham"], "note": notes["graham"]},
-        {"name": "Valuation", "key": "valuation", "score": raw_components["valuation"],
-         "weight": WEIGHTS["valuation"], "note": notes["valuation"]},
-        {"name": "News Sentiment", "key": "news", "score": raw_components["news"],
-         "weight": WEIGHTS["news"], "note": notes["news"]},
         {"name": "Sector Performance", "key": "sector", "score": raw_components["sector"],
          "weight": WEIGHTS["sector"], "note": notes["sector"]},
         {"name": "Macro Conditions", "key": "macro", "score": raw_components["macro"],
@@ -327,14 +306,6 @@ def natural_language_summary(fd, ai_result, company_name="This company"):
     if mos_v is not None:
         fragments.append("an attractive valuation with a real margin of safety" if mos_v >= 0.2
                           else "limited margin of safety at current prices")
-
-    sentiment_note = None
-    for comp in ai_result.get("components", []):
-        if comp["key"] == "news" and comp["score"] is not None:
-            sentiment_note = "positive recent market sentiment" if comp["score"] >= 60 else (
-                "negative recent market sentiment" if comp["score"] <= 40 else "neutral recent market sentiment")
-    if sentiment_note:
-        fragments.append(sentiment_note)
 
     if not fragments:
         return (f"{company_name} does not yet have enough financial history on record for a detailed "
