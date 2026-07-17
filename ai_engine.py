@@ -142,6 +142,32 @@ def _volatility_component(price_series):
     return round(score, 1), risk_label, f"{risk_label.lower()} recent price volatility"
 
 
+def compute_sector_average_graham(sector_company_names, companies, investor_type="defensive"):
+    """
+    Average Graham score across a company's sector peers, used to feed the
+    'Sector Performance' component. Reuses score_defensive/score_enterprising
+    exactly as-is on each peer (same investor-type-by-data-availability rule
+    used everywhere else in the app) - this is new orchestration on top of
+    the untouched Graham engine, not a change to the Graham logic itself.
+    Returns None if no peer could be scored.
+    """
+    scores = []
+    for name in sector_company_names:
+        fd = companies.get(name)
+        if not fd:
+            continue
+        try:
+            years = len(fd.get("years", []))
+            peer_type = investor_type if years >= 9 else "enterprising"
+            total, _ = _graham_component(fd, peer_type)
+            scores.append(total)
+        except Exception:
+            continue
+    if not scores:
+        return None
+    return sum(scores) / len(scores)
+
+
 def _recommendation_label(score):
     if score >= 80:
         return "Strong Buy"
