@@ -16,6 +16,7 @@ with a world map, country comparison, and Sri Lanka historical trends.
 Requires: feedparser, requests, plotly  ->  pip install feedparser requests plotly
 """
 
+import html
 import re
 import time
 from datetime import datetime, timedelta
@@ -147,7 +148,9 @@ def fetch_feed(source_name, url):
             else:
                 published_dt = None
             summary = entry.get("summary", "") or entry.get("description", "")
+            summary = html.unescape(summary)  # decode &lt;/div&gt; etc. before stripping
             summary = re.sub("<[^<]+?>", "", summary).strip()  # strip HTML tags
+            summary = re.sub(r"\s*The post .*? appeared first on .*?\.?\s*$", "", summary).strip()  # strip WP boilerplate footer
             items.append({
                 "title": entry.get("title", "Untitled"),
                 "link": entry.get("link", ""),
