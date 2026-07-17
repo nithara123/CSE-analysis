@@ -1,1337 +1,214 @@
-import streamlit as st
+"""
+investor360_app.py — Investor 360 (redesigned)
+====================================
+Thin orchestration layer only. All calculations live in graham_engine.py
+(untouched Graham logic) and ai_engine.py (new AI Recommendation Score).
+All page content lives in pages/*.py. This file's job is: load data once,
+gate on onboarding, render the sidebar, and route to the selected page.
+
+Architecture map (what changed vs. the original single-file app.py):
+
+    ORIGINAL                          REDESIGNED
+    ---------------------------------  -----------------------------------
+    app.py (everything)                app.py (routing/orchestration only)
+    score_defensive/score_enterprising graham_engine.py (byte-identical)
+    (n/a - new requirement)            ai_engine.py (AI Recommendation Score)
+    (n/a - new requirement)            preferences.py + onboarding.py
+    (n/a - new requirement)            portfolio_store.py
+    inline metric numbers, no context  metric_info.py + render_metric_info()
+    Home / Company Analysis / ...      pages/dashboard.py, discover.py,
+                                        workspace.py, portfolio.py, etc.
+    cse_price_chart.py                 unchanged, reused as-is
+    news_intelligence.py               unchanged, reused as-is
+    investor360_data.json              unchanged, reused as-is
+"""
+
 import json
-import random
-import base64
-import pandas as pd
-import plotly.graph_objects as go
-from cse_price_chart import render_price_movement_section
-from news_intelligence import render_market_intelligence
+
+import streamlit as st
+
+from preferences import load_profile, reset_onboarding
+from onboarding import render_onboarding
+from pages import dashboard, getting_started, discover, workspace, portfolio, market_dashboard, learning_centre
 
 st.set_page_config(page_title="Investor 360 | CSE Analytics", layout="wide", initial_sidebar_state="expanded")
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
-# ============================================================
-# INVESTOR 360 — "LEDGER" THEME
-# Soft lavender bento-dashboard aesthetic, grounded in CSE data:
-# the signature motif is a small candlestick "wick" tick that
-# marks every card/section header — a nod to the price charts
-# that anchor the whole app.
-# ============================================================
-# DESIGN TOKENS
-# Background   #F3F4FC  soft lavender-white
-# Surface      #FFFFFF  card white
-# Surface-alt  #EEF0FB  nested/inset lavender
-# Ink          #15172E  near-black navy (text)
-# Ink-soft     #8B93AD  muted slate (labels/captions)
-# Indigo       #4F46E5  primary accent / nav
-# Indigo-deep  #372FA0  hover/active
-# Teal         #14B8A6  positive / gains
-# Coral        #FB6A5B  negative / risk
-# Amber        #F5A524  neutral / moderate
-# Fonts: 'Sora' (display/headers), 'Inter' (body/data)
-# ============================================================
-
+# ── CSS (unchanged "Ledger" theme from the original app) ──────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    --bg: #F3F4FC;
-    --surface: #FFFFFF;
-    --surface-alt: #EEF0FB;
-    --ink: #15172E;
-    --ink-soft: #8B93AD;
-    --indigo: #4F46E5;
-    --indigo-deep: #372FA0;
-    --teal: #14B8A6;
-    --coral: #FB6A5B;
-    --amber: #F5A524;
+    --bg: #F3F4FC; --surface: #FFFFFF; --surface-alt: #EEF0FB;
+    --ink: #15172E; --ink-soft: #8B93AD;
+    --indigo: #4F46E5; --indigo-deep: #372FA0;
+    --teal: #14B8A6; --coral: #FB6A5B; --amber: #F5A524;
     --radius: 20px;
     --shadow: 0 8px 24px rgba(21, 23, 46, 0.06);
     --shadow-sm: 0 2px 10px rgba(21, 23, 46, 0.05);
 }
-
-/* ── Base ─────────────────────────────────────────────────── */
-html, body, .stApp {
-    background-color: var(--bg) !important;
-    color: var(--ink);
-    font-family: 'Inter', sans-serif;
-}
+html, body, .stApp { background-color: var(--bg) !important; color: var(--ink); font-family: 'Inter', sans-serif; }
 header[data-testid="stHeader"] { background: transparent; }
 .block-container { padding-top: 1.75rem; padding-bottom: 2rem; }
 
-/* ── Sidebar → pill nav, light not navy ──────────────────── */
-section[data-testid="stSidebar"] {
-    background-color: var(--surface);
-    border-right: 1px solid #E5E8F5;
-}
+section[data-testid="stSidebar"] { background-color: var(--surface); border-right: 1px solid #E5E8F5; }
 section[data-testid="stSidebar"] * { color: var(--ink) !important; }
-section[data-testid="stSidebar"] h2 {
-    font-family: 'Sora', sans-serif !important;
-    font-weight: 800 !important;
-    color: var(--indigo) !important;
-    letter-spacing: -0.02em;
-}
+section[data-testid="stSidebar"] h2 { font-family: 'Sora', sans-serif !important; font-weight: 800 !important; color: var(--indigo) !important; letter-spacing: -0.02em; }
 section[data-testid="stSidebar"] div[role="radiogroup"] { gap: 6px; display: flex; flex-direction: column; }
 section[data-testid="stSidebar"] div[role="radiogroup"] label {
-    background: var(--surface-alt);
-    border-radius: 999px;
-    padding: 9px 16px;
-    margin: 0;
-    font-weight: 600;
-    font-size: 0.85rem;
-    transition: all 0.15s ease;
-    border: 1px solid transparent;
+    background: var(--surface-alt); border-radius: 999px; padding: 9px 16px; margin: 0;
+    font-weight: 600; font-size: 0.85rem; transition: all 0.15s ease; border: 1px solid transparent;
 }
-section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-    border-color: var(--indigo);
-}
-section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
+section[data-testid="stSidebar"] div[role="radiogroup"] label:hover { border-color: var(--indigo); }
 section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
-    background: var(--indigo) !important;
-    box-shadow: var(--shadow-sm);
+    background: var(--indigo) !important; box-shadow: var(--shadow-sm);
 }
-section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p {
-    color: #FFFFFF !important;
-}
+section[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p { color: #FFFFFF !important; }
 
-/* ── Headings ─────────────────────────────────────────────── */
 h1, h2, h3 { font-family: 'Sora', sans-serif !important; letter-spacing: -0.02em; }
 h1 { color: var(--ink) !important; font-size: 2rem !important; font-weight: 800 !important; }
 h2 { color: var(--ink) !important; font-size: 1.35rem !important; font-weight: 700 !important; }
 h3 { color: var(--ink) !important; font-size: 1.02rem !important; font-weight: 700 !important; }
+h2::before, h3::before { content:""; display:inline-block; width:4px; height:1em; background:var(--teal); border-radius:3px; margin-right:9px; vertical-align:-0.1em; }
 
-/* signature "wick" tick in front of every section h2/h3 */
-h2::before, h3::before {
-    content: "";
-    display: inline-block;
-    width: 4px; height: 1em;
-    background: var(--teal);
-    border-radius: 3px;
-    margin-right: 9px;
-    vertical-align: -0.1em;
-}
+[data-testid="metric-container"] { background: var(--surface); border: 1px solid #EAEDF7; border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); }
+[data-testid="metric-container"] label { color: var(--ink-soft) !important; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+[data-testid="metric-container"] [data-testid="metric-value"] { color: var(--ink) !important; font-family: 'Sora', sans-serif; font-size: 1.25rem !important; font-weight: 700; }
 
-/* ── Metric containers ────────────────────────────────────── */
-[data-testid="metric-container"] {
-    background: var(--surface);
-    border: 1px solid #EAEDF7;
-    border-radius: var(--radius);
-    padding: 18px;
-    box-shadow: var(--shadow-sm);
-}
-[data-testid="metric-container"] label {
-    color: var(--ink-soft) !important; font-size: 0.72rem;
-    font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-}
-[data-testid="metric-container"] [data-testid="metric-value"] {
-    color: var(--ink) !important; font-family: 'Sora', sans-serif;
-    font-size: 1.25rem !important; font-weight: 700;
-}
+.quote-banner { background: linear-gradient(120deg, var(--indigo), #7C6FF0); border-radius: var(--radius); padding: 16px 24px; margin-bottom: 20px; font-style: italic; color: #EDEBFF; font-size: 0.94rem; box-shadow: var(--shadow); }
 
-/* ── Quote banner ─────────────────────────────────────────── */
-.quote-banner {
-    background: linear-gradient(120deg, var(--indigo), #7C6FF0);
-    border-radius: var(--radius);
-    padding: 16px 24px; margin-bottom: 20px;
-    font-style: italic; color: #EDEBFF; font-size: 0.94rem;
-    box-shadow: var(--shadow);
-}
-
-/* ── Section cards ────────────────────────────────────────── */
-.section-card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 22px; margin-bottom: 16px;
-    border: 1px solid #EAEDF7;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.15s ease;
-}
+.section-card { background: var(--surface); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; border: 1px solid #EAEDF7; box-shadow: var(--shadow-sm); transition: box-shadow 0.15s ease; }
 .section-card:hover { box-shadow: var(--shadow); }
 
-/* ── Status tags → soft pills ─────────────────────────────── */
 .tag-good { background:#DCFCF5; color:#0F7A6C; padding:3px 12px; border-radius:999px; font-size:0.76rem; font-weight:700; }
 .tag-ok   { background:#FEF3D9; color:#9A6B0C; padding:3px 12px; border-radius:999px; font-size:0.76rem; font-weight:700; }
 .tag-bad  { background:#FFE4E1; color:#C43D2E; padding:3px 12px; border-radius:999px; font-size:0.76rem; font-weight:700; }
 
-/* ── Tabs → segmented pill control ───────────────────────── */
-.stTabs [data-baseweb="tab-list"] {
-    background: var(--surface-alt);
-    border-radius: 999px;
-    padding: 4px;
-    gap: 2px;
-}
-.stTabs [role="tab"] {
-    color: var(--ink-soft); font-weight: 600; font-size: 0.86rem;
-    border-radius: 999px !important; padding: 6px 18px !important;
-}
-.stTabs [role="tab"][aria-selected="true"] {
-    color: #FFFFFF; background: var(--indigo) !important; border-bottom: none !important;
-}
+.stTabs [data-baseweb="tab-list"] { background: var(--surface-alt); border-radius: 999px; padding: 4px; gap: 2px; }
+.stTabs [role="tab"] { color: var(--ink-soft); font-weight: 600; font-size: 0.86rem; border-radius: 999px !important; padding: 6px 18px !important; }
+.stTabs [role="tab"][aria-selected="true"] { color: #FFFFFF; background: var(--indigo) !important; border-bottom: none !important; }
 
-.stSelectbox label, .stSlider label, .stMultiSelect label, .stRadio label {
-    color: var(--ink) !important; font-weight: 600; font-size: 0.84rem;
-}
+.stSelectbox label, .stSlider label, .stMultiSelect label, .stRadio label { color: var(--ink) !important; font-weight: 600; font-size: 0.84rem; }
 
-/* ── Company header ───────────────────────────────────────── */
-.company-header {
-    background: linear-gradient(120deg, var(--ink) 0%, var(--indigo-deep) 100%);
-    border-radius: var(--radius); padding: 18px 24px; margin-bottom: 16px; color: white;
-    box-shadow: var(--shadow);
-}
+.company-header { background: linear-gradient(120deg, var(--ink) 0%, var(--indigo-deep) 100%); border-radius: var(--radius); padding: 18px 24px; margin-bottom: 16px; color: white; box-shadow: var(--shadow); }
 
-/* ── Investor type selector ───────────────────────────────── */
-.investor-box {
-    border: 2px solid #EAEDF7; border-radius: var(--radius); padding: 18px 22px;
-    background: var(--surface); cursor: pointer; transition: all 0.2s;
-}
-.investor-box.active { border-color: var(--indigo); background: var(--surface-alt); }
-.investor-box h4 { color: var(--ink); margin: 0 0 6px 0; font-size: 1rem; font-family: 'Sora', sans-serif; }
-.investor-box p { color: var(--ink-soft); font-size: 0.83rem; margin: 0; }
-
-/* ── Score display ────────────────────────────────────────── */
-.score-block {
-    background: var(--surface); border-radius: var(--radius); padding: 22px;
-    border: 1px solid #EAEDF7; text-align: center;
-    box-shadow: var(--shadow-sm);
-}
+.score-block { background: var(--surface); border-radius: var(--radius); padding: 22px; border: 1px solid #EAEDF7; text-align: center; box-shadow: var(--shadow-sm); }
 .score-num { font-family: 'Sora', sans-serif; font-size: 2.9rem; font-weight: 800; line-height: 1; }
-.score-label { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase;
-               letter-spacing: 0.07em; margin-top: 6px; font-weight: 700; }
+.score-label { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 6px; font-weight: 700; }
 .score-verdict { font-size: 0.87rem; font-weight: 700; margin-top: 10px; }
 
-/* ── Criteria row ─────────────────────────────────────────── */
-.criteria-row {
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 11px 0; border-bottom: 1px solid var(--surface-alt);
-}
+.criteria-row { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--surface-alt); }
 .criteria-icon { font-size: 1rem; min-width: 22px; margin-top: 1px; }
 .criteria-name { font-weight: 700; color: var(--ink); font-size: 0.88rem; }
 .criteria-detail { color: var(--ink-soft); font-size: 0.82rem; margin-top: 2px; }
-.criteria-pts { font-size: 0.8rem; color: var(--indigo); font-weight: 700;
-                margin-left: auto; white-space: nowrap; padding-left: 12px; }
+.criteria-pts { font-size: 0.8rem; color: var(--indigo); font-weight: 700; margin-left: auto; white-space: nowrap; padding-left: 12px; }
 
-.footer {
-    text-align:center; color: var(--ink-soft); font-size:0.78rem;
-    padding:24px 0 8px 0; border-top:1px solid var(--surface-alt); margin-top:40px;
-}
+.footer { text-align:center; color: var(--ink-soft); font-size:0.78rem; padding:24px 0 8px 0; border-top:1px solid var(--surface-alt); margin-top:40px; }
 
-/* ── Broker cards ─────────────────────────────────────────── */
-.broker-card {
-    background: var(--surface); border:1px solid #EAEDF7; border-radius: var(--radius);
-    padding:18px; margin-bottom:10px; text-align:center;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
+.broker-card { background: var(--surface); border:1px solid #EAEDF7; border-radius: var(--radius); padding:18px; margin-bottom:10px; text-align:center; box-shadow: var(--shadow-sm); transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .broker-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.broker-avatar {
-    width:56px; height:56px; border-radius:50%; object-fit:cover;
-    border:2px solid var(--surface-alt); margin:0 auto 10px auto; display:block;
-    background: var(--surface);
-}
-.broker-name { font-weight:700; color: var(--ink); font-size:0.86rem; line-height:1.25;
-               font-family: 'Sora', sans-serif;
-               min-height:42px; display:flex; align-items:center; justify-content:center; }
+.broker-avatar { width:56px; height:56px; border-radius:50%; object-fit:cover; border:2px solid var(--surface-alt); margin:0 auto 10px auto; display:block; background: var(--surface); }
+.broker-name { font-weight:700; color: var(--ink); font-size:0.86rem; line-height:1.25; font-family: 'Sora', sans-serif; min-height:42px; display:flex; align-items:center; justify-content:center; }
 .broker-fee  { color: var(--teal); font-weight: 700; font-size:0.78rem; margin:4px 0 10px 0; }
 .broker-contact { color: var(--ink-soft); font-size:0.74rem; text-align:left; margin-top:8px; line-height:1.6; }
+.broker-detail-panel { background: var(--surface); border:1px solid #EAEDF7; border-radius: var(--radius); padding:22px; box-shadow: var(--shadow); position:sticky; top:12px; }
+.broker-badge { display:inline-block; background: var(--surface-alt); color: var(--indigo); font-size:0.7rem; font-weight:700; padding:3px 12px; border-radius:999px; margin-top:2px; }
+.broker-detail-avatar { width:54px; height:54px; border-radius:50%; object-fit:cover; border:2px solid var(--surface-alt); float:left; margin-right:12px; }
+.broker-min-box { background:#DCFCF5; color:#0F7A6C; border-radius:12px; padding:10px 14px; font-weight:700; font-size:0.9rem; margin-top:6px; }
 
-.broker-detail-panel {
-    background: var(--surface); border:1px solid #EAEDF7; border-radius: var(--radius);
-    padding:22px; box-shadow: var(--shadow); position:sticky; top:12px;
-}
-.broker-badge {
-    display:inline-block; background: var(--surface-alt); color: var(--indigo); font-size:0.7rem;
-    font-weight:700; padding:3px 12px; border-radius:999px; margin-top:2px;
-}
-.broker-detail-avatar {
-    width:54px; height:54px; border-radius:50%; object-fit:cover;
-    border:2px solid var(--surface-alt); float:left; margin-right:12px;
-}
-.broker-min-box {
-    background:#DCFCF5; color:#0F7A6C; border-radius:12px; padding:10px 14px;
-    font-weight:700; font-size:0.9rem; margin-top:6px;
-}
-
-/* ── Buttons ──────────────────────────────────────────────── */
-.stButton button {
-    border-radius: 999px !important;
-    font-weight: 600 !important;
-    border: 1px solid #EAEDF7 !important;
-}
-.stButton button:hover {
-    border-color: var(--indigo) !important;
-    color: var(--indigo) !important;
-}
+.stButton button { border-radius: 999px !important; font-weight: 600 !important; border: 1px solid #EAEDF7 !important; }
+.stButton button:hover { border-color: var(--indigo) !important; color: var(--indigo) !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Load Data ─────────────────────────────────────────────────────────────────
+
+# ── Load Data (unchanged JSON structure/location) ─────────────────────────────
 @st.cache_data
 def load_data():
     with open("investor360_data (3) (1) (1).json", "r", encoding="utf-8") as f:
         return json.load(f)
 
-data         = load_data()
-companies    = data.get("companies", {})
-brokers      = data.get("brokers", [])
-sectors      = data.get("sectors", {})
 
-@st.cache_data(show_spinner=False)
-def logo_b64(filename):
-    """Read a logo file from the /logos folder and return a base64 data URI, or None if missing."""
-    if not filename:
-        return None
-    try:
-        with open(f"logos/{filename}", "rb") as f:
-            encoded = base64.b64encode(f.read()).decode()
-        ext = filename.split(".")[-1].lower()
-        return f"data:image/{ext};base64,{encoded}"
-    except FileNotFoundError:
-        return None
+data = load_data()
+companies = data.get("companies", {})
+brokers = data.get("brokers", [])
+sectors = data.get("sectors", {})
 
-# ── Quotes ────────────────────────────────────────────────────────────────────
-QUOTES = [
-    ("Price is what you pay. Value is what you get.", "Warren Buffett"),
-    ("The intelligent investor is a realist who sells to optimists and buys from pessimists.", "Benjamin Graham"),
-    ("An investment in knowledge pays the best interest.", "Benjamin Franklin"),
-    ("The stock market is filled with individuals who know the price of everything, but the value of nothing.", "Philip Fisher"),
-    ("Risk comes from not knowing what you are doing.", "Warren Buffett"),
-    ("In investing, what is comfortable is rarely profitable.", "Robert Arnott"),
-    ("Time in the market beats timing the market.", "Ken Fisher"),
-    ("Never invest in a business you cannot understand.", "Warren Buffett"),
-    ("Know what you own, and know why you own it.", "Peter Lynch"),
-    ("The market is a device for transferring money from the impatient to the patient.", "Warren Buffett"),
-    ("Wide diversification is only required when investors do not understand what they are doing.", "Warren Buffett"),
-    ("The best investment you can make is in yourself.", "Warren Buffett"),
+
+# ── Onboarding gate ────────────────────────────────────────────────────────────
+profile = load_profile()
+if not profile.get("onboarding_complete"):
+    render_onboarding()
+    st.stop()
+
+if st.session_state.pop("just_onboarded", False):
+    st.toast("You're all set! Welcome to Investor 360.", icon="🎉")
+
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+NAV_PAGES = [
+    "Dashboard", "Getting Started", "Discover Companies",
+    "Company Workspace", "Portfolio", "Market Dashboard", "Learning Centre",
 ]
-if "quote" not in st.session_state:
-    st.session_state.quote = random.choice(QUOTES)
-q_text, q_author = st.session_state.quote
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def get_series(fd, *keys):
-    d = fd
-    for k in keys:
-        if not isinstance(d, dict): return {}
-        d = d.get(k, {})
-    if not isinstance(d, dict): return {}
-    return {y: v for y, v in d.items() if v is not None}
-
-def latest(s):
-    if not s: return None
-    return s.get(max(s.keys()))
-
-def n_years(s, n):
-    """Return values from the most recent n years."""
-    if not s: return {}
-    yrs = sorted(s.keys(), reverse=True)[:n]
-    return {y: s[y] for y in yrs}
-
-def all_positive(s):
-    if not s: return False
-    return all(v > 0 for v in s.values())
-
-def any_positive(s):
-    return any(v > 0 for v in s.values()) if s else False
-
-def fmt(val, prefix="", suffix="", dec=2):
-    if val is None: return "N/A"
-    try: return f"{prefix}{val:,.{dec}f}{suffix}"
-    except: return "N/A"
-
-def fmt_large(val):
-    if val is None: return "N/A"
-    try:
-        if abs(val) >= 1e9: return f"LKR {val/1e9:,.2f}B"
-        if abs(val) >= 1e6: return f"LKR {val/1e6:,.2f}M"
-        if abs(val) >= 1e3: return f"LKR {val/1e3:,.1f}K"
-        return f"LKR {val:,.0f}"
-    except: return "N/A"
-        
-def available_years(fd):
-    """Returns how many years of data the company has."""
-    years = fd.get("years", [])
-    return len(years)
-    
-C = ["#0B1D51","#2563eb","#16a34a","#d97706","#9333ea"]
-
-def line_chart(series_dict, title, y_label):
-    fig = go.Figure()
-    for i, (label, series) in enumerate(series_dict.items()):
-        xs = sorted(series.keys())
-        fig.add_trace(go.Scatter(x=xs, y=[series[x] for x in xs], mode="lines+markers",
-            name=label, line=dict(color=C[i%len(C)], width=2.5), marker=dict(size=6)))
-    fig.update_layout(
-        title=dict(text=title, font=dict(color="#0B1D51", size=13), x=0),
-        paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2", title=y_label),
-        legend=dict(bgcolor="rgba(0,0,0,0)"),
-        margin=dict(l=10,r=10,t=40,b=10), height=285)
-    return fig
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SCORING ENGINES
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def score_defensive(fd):
-    """
-    Defensive Investor — uses 10 years of data.
-    Total: 100 points across 7 criteria.
-    Returns: (total_score, criteria_list)
-    Each criterion: {name, points_earned, points_max, met, detail, description}
-    """
-    results = []
-
-    eps_all  = get_series(fd, "income_statement", "eps")
-    div_all  = get_series(fd, "income_statement", "dividend_per_share")
-    cr_all   = get_series(fd, "ratios", "current_ratio")
-    pe_all   = get_series(fd, "market_metrics", "pe_ratio")
-    mp_all   = get_series(fd, "market_metrics", "market_price")
-    iv_all   = get_series(fd, "graham_analysis", "intrinsic_value")
-    mos_all  = get_series(fd, "graham_analysis", "margin_of_safety")
-    dr_all   = get_series(fd, "ratios", "debt_ratio")
-
-    eps_10 = n_years(eps_all, 10)
-    div_10 = n_years(div_all, 10)
-
-    # 1. Earnings Consistency — 20 pts
-    # All 10 years of EPS must be positive
-    if len(eps_10) >= 10 and all_positive(eps_10):
-        pts = 20; met = True
-        detail = f"Positive EPS across all {len(eps_10)} available years."
-    elif len(eps_10) >= 7 and all_positive(eps_10):
-        pts = 12; met = False
-        detail = f"Positive EPS across {len(eps_10)} years (need 10)."
-    elif any_positive(eps_10):
-        pts = 5; met = False
-        neg_count = sum(1 for v in eps_10.values() if v <= 0)
-        detail = f"{neg_count} year(s) with negative/zero EPS detected."
-    else:
-        pts = 0; met = False
-        detail = "EPS data insufficient or all negative."
-    results.append({"name":"Earnings Consistency (10 Years)", "pts":pts, "max":20, "met":met,
-        "detail":detail, "desc":"Company must have positive EPS for all of the last 10 years."})
-
-    # 2. Dividend History — 15 pts
-    # Uninterrupted dividends for 10+ years
-    paid_years = [y for y, v in div_10.items() if v and v > 0]
-    if len(paid_years) >= 10:
-        pts = 15; met = True
-        detail = f"Dividends paid in all {len(paid_years)} available years."
-    elif len(paid_years) >= 6:
-        pts = 8; met = False
-        detail = f"Dividends paid in {len(paid_years)}/10 years (need 10)."
-    else:
-        pts = 0; met = False
-        detail = f"Dividends paid in only {len(paid_years)} year(s) — insufficient."
-    results.append({"name":"Dividend History (10 Years)", "pts":pts, "max":15, "met":met,
-        "detail":detail, "desc":"Uninterrupted dividend payments for at least 10 years."})
-
-    # 3. Financial Health (Current Ratio) — 15 pts
-    cr_v = latest(cr_all)
-    if cr_v and cr_v >= 2.0:
-        pts = 15; met = True
-        detail = f"Current ratio = {cr_v:.2f} (above required 2.0)."
-    elif cr_v and cr_v >= 1.5:
-        pts = 8; met = False
-        detail = f"Current ratio = {cr_v:.2f} (below required 2.0, above 1.5)."
-    else:
-        pts = 0; met = False
-        detail = f"Current ratio = {fmt(cr_v)} (below minimum threshold of 2.0)."
-    results.append({"name":"Financial Health — Current Ratio >= 2.0", "pts":pts, "max":15, "met":met,
-        "detail":detail, "desc":"Current ratio of at least 2.0 to ensure strong short-term liquidity."})
-
-    # 4. Low Debt — 10 pts
-    dr_v = latest(dr_all)
-    if dr_v and dr_v < 0.5:
-        pts = 10; met = True
-        detail = f"Debt ratio = {dr_v:.3f} (conservative leverage)."
-    elif dr_v and dr_v < 0.65:
-        pts = 5; met = False
-        detail = f"Debt ratio = {dr_v:.3f} (moderate — above preferred 0.5)."
-    else:
-        pts = 0; met = False
-        detail = f"Debt ratio = {fmt(dr_v)} (high leverage — above 0.65)."
-    results.append({"name":"Low Debt (Debt Ratio < 0.5)", "pts":pts, "max":10, "met":met,
-        "detail":detail, "desc":"Low debt-to-asset ratio to ensure financial stability."})
-
-    # 5. Valuation — P/E Limit — 15 pts
-    # Must not pay more than 20x last 12-month earnings or 25x 7-year avg
-    pe_v = latest(pe_all)
-    eps_7 = n_years(eps_all, 7)
-    eps_7_avg = sum(eps_7.values()) / len(eps_7) if eps_7 else None
-    mp_v = latest(mp_all)
-    pe_7yr = (mp_v / eps_7_avg) if (mp_v and eps_7_avg and eps_7_avg > 0) else None
-    pe_ok = (pe_v and 0 < pe_v <= 20) if pe_v else False
-    pe7_ok = (pe_7yr and 0 < pe_7yr <= 25) if pe_7yr else False
-    if pe_ok and pe7_ok:
-        pts = 15; met = True
-        detail = f"P/E (latest) = {fmt(pe_v)}, P/E (7yr avg EPS) = {fmt(pe_7yr)}. Both within limits."
-    elif pe_ok or pe7_ok:
-        pts = 8; met = False
-        detail = f"P/E (latest) = {fmt(pe_v)}, P/E (7yr avg EPS) = {fmt(pe_7yr)}. One limit exceeded."
-    else:
-        pts = 0; met = False
-        detail = f"P/E (latest) = {fmt(pe_v)}, P/E (7yr avg EPS) = {fmt(pe_7yr)}. Both limits exceeded."
-    results.append({"name":"Valuation Limits (P/E <= 20 latest, <= 25 on 7yr avg)", "pts":pts, "max":15, "met":met,
-        "detail":detail, "desc":"Avoid paying more than 20x last 12-month earnings or 25x 7-year average earnings."})
-
-    # 6. Margin of Safety — 15 pts
-    mos_v = latest(mos_all)
-    if mos_v and mos_v >= 0.33:
-        pts = 15; met = True
-        detail = f"Margin of safety = {mos_v:.1%} (strong protection above 33%)."
-    elif mos_v and mos_v > 0:
-        pts = 7; met = False
-        detail = f"Margin of safety = {mos_v:.1%} (positive but below the recommended 33%)."
-    else:
-        pts = 0; met = False
-        detail = f"Margin of safety = {fmt(mos_v)} (zero or negative — stock may be overvalued)."
-    results.append({"name":"Margin of Safety >= 33%", "pts":pts, "max":15, "met":met,
-        "detail":detail, "desc":"Buy at a price significantly below intrinsic value to protect against error."})
-
-    # 7. Company Size / Quality (proxy: book value > 0 and consistent revenue) — 10 pts
-    bv_v = latest(get_series(fd, "market_metrics", "bvps"))
-    rev_s = get_series(fd, "income_statement", "total_revenue")
-    rev_10 = n_years(rev_s, 10)
-    rev_positive = all(v > 0 for v in rev_10.values()) if rev_10 else False
-    if bv_v and bv_v > 0 and rev_positive:
-        pts = 10; met = True
-        detail = f"Positive book value ({fmt(bv_v, 'LKR ')}) and consistent positive revenue across available years."
-    elif bv_v and bv_v > 0:
-        pts = 5; met = False
-        detail = f"Positive book value but revenue inconsistency detected."
-    else:
-        pts = 0; met = False
-        detail = f"Negative or zero book value detected."
-    results.append({"name":"Company Quality (Positive Book Value & Revenue)", "pts":pts, "max":10, "met":met,
-        "detail":detail, "desc":"Large, established company with positive book value and consistent revenue."})
-
-    total = sum(r["pts"] for r in results)
-    return total, results
+if "current_page" not in st.session_state:
+    st.session_state.current_page = st.session_state.pop("pending_nav", "Dashboard")
 
 
-def score_enterprising(fd):
-    """
-    Enterprising Investor — uses 5 years of data.
-    Total: 100 points across 5 criteria.
-    """
-    results = []
-
-    eps_all = get_series(fd, "income_statement", "eps")
-    div_all = get_series(fd, "income_statement", "dividend_per_share")
-    cr_all  = get_series(fd, "ratios", "current_ratio")
-    pe_all  = get_series(fd, "market_metrics", "pe_ratio")
-    pb_all  = get_series(fd, "market_metrics", "pb_ratio")
-    ltd_all = get_series(fd, "balance_sheet", "long_term_debt")
-    wc_all  = get_series(fd, "balance_sheet", "net_current_assets")
-    eps_g   = get_series(fd, "growth", "eps_growth_yoy")
-
-    eps_5 = n_years(eps_all, 5)
-    div_5 = n_years(div_all, 5)
-    eps_g5 = n_years(eps_g, 5)
-
-    # 1. Financial Strength — 25 pts
-    cr_v  = latest(cr_all)
-    ltd_v = latest(ltd_all)
-    wc_v  = latest(wc_all)
-    cr_ok  = cr_v and cr_v > 1.5
-    ltd_ok = (ltd_v and wc_v and wc_v > 0 and ltd_v < 1.1 * wc_v) if (ltd_v and wc_v) else None
-    pts_cr  = 12 if cr_ok else (6 if cr_v and cr_v >= 1.0 else 0)
-    pts_ltd = 13 if ltd_ok else (6 if ltd_ok is None else 0)
-    pts = pts_cr + pts_ltd
-    met = cr_ok and bool(ltd_ok)
-    cr_detail  = f"Current ratio = {fmt(cr_v)} ({'above' if cr_ok else 'below'} required 1.5)."
-    ltd_detail = f"Long-term debt = {fmt_large(ltd_v)}, Working capital = {fmt_large(wc_v)}."
-    ltd_status = "Within 110% of working capital." if ltd_ok else ("N/A — negative/zero WC." if ltd_ok is None else "Exceeds 110% of working capital.")
-    results.append({"name":"Financial Strength", "pts":pts, "max":25, "met":met,
-        "detail":f"{cr_detail} {ltd_detail} {ltd_status}",
-        "desc":"Current ratio > 1.5 and long-term debt < 110% of working capital."})
-
-    # 2. Earnings Stability (5 years) — 20 pts
-    if len(eps_5) >= 5 and all_positive(eps_5):
-        pts = 20; met = True
-        detail = f"Positive EPS in all {len(eps_5)} of the last 5 years."
-    elif len(eps_5) >= 3 and all_positive({y:v for y,v in eps_5.items()}):
-        pts = 10; met = False
-        detail = f"Positive EPS in {len(eps_5)} years but full 5-year data not available."
-    elif any_positive(eps_5):
-        neg = sum(1 for v in eps_5.values() if v <= 0)
-        pts = 5; met = False
-        detail = f"{neg} year(s) with negative/zero EPS in the last 5 years."
-    else:
-        pts = 0; met = False
-        detail = "No positive EPS in the last 5 years."
-    results.append({"name":"Earnings Stability (5 Years)", "pts":pts, "max":20, "met":met,
-        "detail":detail, "desc":"Positive EPS for each of the last 5 years."})
-
-    # 3. Dividend Record — 15 pts
-    paid = [y for y, v in div_5.items() if v and v > 0]
-    if len(paid) >= 5:
-        pts = 15; met = True
-        detail = f"Dividends paid in all {len(paid)} of the last 5 years."
-    elif len(paid) >= 3:
-        pts = 8; met = False
-        detail = f"Dividends paid in {len(paid)}/5 years."
-    elif len(paid) >= 1:
-        pts = 4; met = False
-        detail = f"Dividends paid in only {len(paid)} year(s) in the last 5 years."
-    else:
-        pts = 0; met = False
-        detail = "No dividends paid in the last 5 years."
-    results.append({"name":"Dividend Record (5 Years)", "pts":pts, "max":15, "met":met,
-        "detail":detail, "desc":"Company should pay some level of dividends, indicating shareholder-friendly management."})
-
-    # 4. Valuation Metrics (P/E and P/B) — 25 pts
-    pe_v = latest(pe_all)
-    pb_v = latest(pb_all)
-    pe_ok = pe_v and 0 < pe_v <= 15
-    pb_ok = pb_v and 0 < pb_v <= 1.5
-    pts_pe = 13 if (pe_v and 0 < pe_v <= 10) else (9 if pe_ok else (4 if pe_v and 0 < pe_v <= 20 else 0))
-    pts_pb = 12 if (pb_v and 0 < pb_v <= 1.2) else (8 if pb_ok else (3 if pb_v and 0 < pb_v <= 2.0 else 0))
-    pts = pts_pe + pts_pb
-    met = bool(pe_ok and pb_ok)
-    detail = f"P/E = {fmt(pe_v)} (target <= 15), P/B = {fmt(pb_v)} (target <= 1.5)."
-    results.append({"name":"Valuation (P/E <= 15, P/B <= 1.5)", "pts":pts, "max":25, "met":met,
-        "detail":detail, "desc":"P/E ratio below 10–15 and P/B ratio below 1.2–1.5, signalling undervaluation."})
-
-    # 5. Earnings Growth (5 years) — 15 pts
-    pos_growth_years = [y for y, v in eps_g5.items() if v and v > 0]
-    avg_growth = sum(eps_g5.values()) / len(eps_g5) if eps_g5 else None
-    if len(pos_growth_years) >= 4 and avg_growth and avg_growth > 0:
-        pts = 15; met = True
-        detail = f"Positive EPS growth in {len(pos_growth_years)}/5 years. Avg growth = {avg_growth:.1%}."
-    elif len(pos_growth_years) >= 3:
-        pts = 8; met = False
-        detail = f"Positive EPS growth in {len(pos_growth_years)}/5 years."
-    elif len(pos_growth_years) >= 1:
-        pts = 4; met = False
-        detail = f"EPS growth positive in only {len(pos_growth_years)} year(s) over 5 years."
-    else:
-        pts = 0; met = False
-        detail = "No positive EPS growth detected in the last 5 years."
-    results.append({"name":"Earnings Growth (5 Years)", "pts":pts, "max":15, "met":met,
-        "detail":detail, "desc":"Demonstrated earnings growth over the past 5 years."})
-
-    total = sum(r["pts"] for r in results)
-    return total, results
+def go_to(page_name):
+    st.session_state.current_page = page_name
+    st.rerun()
 
 
-def render_score_card(score, label):
-    if score >= 75:   color, verdict = "#16a34a", "Strong - Meets Criteria"
-    elif score >= 50: color, verdict = "#d97706", "Moderate - Partially Meets Criteria"
-    else:             color, verdict = "#dc2626", "Weak - Does Not Meet Criteria"
-    st.markdown(f"""
-    <div class="score-block">
-        <div class="score-num" style="color:{color};">{score}</div>
-        <div style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">out of 100</div>
-        <div class="score-label">{label}</div>
-        <div class="score-verdict" style="color:{color};">{verdict}</div>
-    </div>""", unsafe_allow_html=True)
-
-
-def render_criteria(criteria_list):
-    for c in criteria_list:
-        icon = "✅" if c["met"] else "❌"
-        pts_color = "#16a34a" if c["pts"] == c["max"] else ("#d97706" if c["pts"] > 0 else "#dc2626")
-        st.markdown(f"""
-        <div class="criteria-row">
-            <div class="criteria-icon">{icon}</div>
-            <div style="flex:1;">
-                <div class="criteria-name">{c['name']}</div>
-                <div class="criteria-detail" style="color:#64748b; font-size:0.8rem; font-style:italic; margin-top:1px;">{c['desc']}</div>
-                <div class="criteria-detail">{c['detail']}</div>
-            </div>
-            <div class="criteria-pts" style="color:{pts_color};">{c['pts']}/{c['max']} pts</div>
-        </div>""", unsafe_allow_html=True)
-
-
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## Investor 360")
     st.markdown("*Colombo Stock Exchange Analytics*")
     st.divider()
-    page = st.radio("", [
-        "Home", "Company Analysis", "Broker Comparison",
-        "Sector Analytics", "Market Intelligence", "Educational Portal",
-    ], label_visibility="collapsed")
+    page = st.radio(
+        "", NAV_PAGES, label_visibility="collapsed",
+        index=NAV_PAGES.index(st.session_state.current_page),
+        key="nav_radio",
+    )
+    if page != st.session_state.current_page:
+        st.session_state.current_page = page
+        st.rerun()
+
     st.divider()
     st.markdown(f"""
-    <div style='font-size:0.8rem; color:#90b8e0;'>
+    <div style='font-size:0.8rem; color:#8B93AD;'>
     Companies: {data['meta']['total_companies']}<br>
     Brokers: {data['meta']['total_brokers']}<br>
     Sectors: {data['meta']['total_sectors']}<br>
     Data: {data['meta']['data_years']}
     </div>""", unsafe_allow_html=True)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# HOME
-# ══════════════════════════════════════════════════════════════════════════════
-if page == "Home":
-    st.markdown(f'<div class="quote-banner">"{q_text}" &nbsp;— <strong>{q_author}</strong></div>', unsafe_allow_html=True)
-    st.markdown("# Investor 360")
-    st.markdown("#### A data-driven analytics platform for the Colombo Stock Exchange")
     st.divider()
-    m1,m2,m3,m4 = st.columns(4)
-    m1.metric("Companies Covered","186"); m2.metric("Brokers Profiled","13")
-    m3.metric("Sectors Analysed","21");   m4.metric("Years of Data","2016 - 2025")
-    st.divider()
-    st.markdown("### What This Platform Offers")
-    c1,c2,c3 = st.columns(3)
-    for col,title,desc in [
-        (c1,"Company Analysis","Select up to 3 CSE companies. Choose Defensive (10-year) or Enterprising (5-year) investor mode. Get full financial dashboards, scoring out of 100, and side-by-side comparison."),
-        (c2,"Broker Comparison","Filter and compare 13 CSE-registered stockbrokers by brokerage fee, minimum investment, online platform, and research support."),
-        (c3,"Sector Analytics","Explore profitability, debt, and liquidity across 21 CSE sectors to understand macro-level investment context."),
-    ]:
-        col.markdown(f'<div class="section-card"><h3>{title}</h3><p style="color:#5a7199;font-size:0.87rem;margin-top:8px;">{desc}</p></div>', unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# COMPANY ANALYSIS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "Company Analysis":
-    st.markdown(f'<div class="quote-banner">"{q_text}" &nbsp;— <strong>{q_author}</strong></div>', unsafe_allow_html=True)
-    st.markdown("## Company Analysis")
-    st.caption("Select up to 3 companies and choose your investor profile to see tailored analysis and scoring.")
-
-    # ── Investor Type Selection ───────────────────────────────────────────────
-    st.markdown("### Select Investor Type")
-    inv_col1, inv_col2 = st.columns(2)
-    with inv_col1:
-        st.markdown("""
-        <div class="section-card" style="border-left: 4px solid #0B1D51;">
-            <h3 style="margin:0 0 6px 0;">Defensive Investor</h3>
-            <p style="color:#5a7199; font-size:0.85rem; margin:0;">
-            Uses <strong>10 years</strong> of data. Strictly evaluates long-term consistency -
-            earnings, dividends, financial health, and conservative valuation.
-            Based on Benjamin Graham's criteria for risk-averse, long-term investors.
-            </p>
-        </div>""", unsafe_allow_html=True)
-    with inv_col2:
-        st.markdown("""
-        <div class="section-card" style="border-left: 4px solid #2563eb;">
-            <h3 style="margin:0 0 6px 0;">Enterprising Investor</h3>
-            <p style="color:#5a7199; font-size:0.85rem; margin:0;">
-            Uses <strong>5 years</strong> of data. More flexible - evaluates financial strength,
-            earnings stability, dividend payments, valuation metrics, and growth.
-            Suited for active investors willing to take calculated risks.
-            </p>
-        </div>""", unsafe_allow_html=True)
-
-    investor_type = st.radio(
-        "Choose investor type",
-        ["Defensive Investor (10 Years)", "Enterprising Investor (5 Years)"],
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-    is_defensive = investor_type.startswith("Defensive")
-    st.divider()
-
-    # ── Company Selection ─────────────────────────────────────────────────────
-    all_names = sorted(companies.keys())
-    col1, col2, col3 = st.columns(3)
-    with col1: c1 = st.selectbox("Company 1", ["— Select —"] + all_names, key="c1")
-    with col2: c2 = st.selectbox("Company 2 (optional)", ["— Select —"] + all_names, key="c2")
-    with col3: c3 = st.selectbox("Company 3 (optional)", ["— Select —"] + all_names, key="c3")
-
-    selected = list(dict.fromkeys([c for c in [c1,c2,c3] if c != "— Select —"]))
-    if len(selected) < len([c for c in [c1,c2,c3] if c != "— Select —"]):
-        st.warning("Duplicate company removed. Please select different companies.")
-    if not selected:
-        st.info("Select at least one company above to begin analysis.")
-        st.stop()
-
-    st.divider()
-
-    # ── Per-company dashboard ─────────────────────────────────────────────────
-    score_summary = []  # for comparison
-
-    for company_name in selected:
-        fd = companies.get(company_name, {})
-        if not fd:
-            st.error(f"No data found for: {company_name}")
-            continue
-        # Check available years for Defensive Investor
-        years_available = available_years(fd)
-
-        if is_defensive and years_available < 9:
-            st.warning(
-              f"""
-              ⚠️ **{company_name} cannot be analysed as a Defensive Investment.**
-              Only **{years_available} years** of financial data are available.
-              Defensive Investing requires **10 years** of historical financial data.
-              Please switch to **Enterprising Investor**, which is designed for companies with shorter financial histories.
-              """
-            )
-            continue
-        
-        # Run selected scoring engine
-        if is_defensive:
-            total_score, criteria = score_defensive(fd)
-            score_type_label = "Defensive Score"
-            data_note = "Analysis based on up to 10 years of data."
-        else:
-            total_score, criteria = score_enterprising(fd)
-            score_type_label = "Enterprising Score"
-            data_note = "Analysis based on the last 5 years of data."
-
-        score_summary.append({"Company": company_name, "Score": total_score, "Type": score_type_label})
-
-        # Pull chart data
-        eps_s  = get_series(fd, "income_statement", "eps")
-        rev_s  = get_series(fd, "income_statement", "total_revenue")
-        div_s  = get_series(fd, "income_statement", "dividend_per_share")
-        cr_s   = get_series(fd, "ratios", "current_ratio")
-        dr_s   = get_series(fd, "ratios", "debt_ratio")
-        mp_s   = get_series(fd, "market_metrics", "market_price")
-        iv_s   = get_series(fd, "graham_analysis", "intrinsic_value")
-        mos_s  = get_series(fd, "graham_analysis", "margin_of_safety")
-        pe_s   = get_series(fd, "market_metrics", "pe_ratio")
-        pb_s   = get_series(fd, "market_metrics", "pb_ratio")
-        bv_s   = get_series(fd, "market_metrics", "bvps")
-        rev_g  = get_series(fd, "growth", "revenue_growth_yoy")
-        eps_g  = get_series(fd, "growth", "eps_growth_yoy")
-        intang = get_series(fd, "balance_sheet", "intangible_assets")
-
-        with st.expander(f"{company_name}  |  {fd.get('sector','—')}  |  {score_type_label}: {total_score}/100", expanded=True):
-
-            # Header
-            score_color = "#16a34a" if total_score >= 75 else "#d97706" if total_score >= 50 else "#dc2626"
-            st.markdown(f"""
-            <div class="company-header">
-                <div style="font-size:1.05rem; font-weight:700;">{company_name} &nbsp;({fd.get('symbol','—')})</div>
-                <div style="color:#90b8e0; font-size:0.82rem; margin-top:4px;">
-                    {fd.get('sector','—')} &nbsp;|&nbsp; {fd.get('industry','—')} &nbsp;|&nbsp;
-                    {score_type_label}: <strong style="color:#ffffff;">{total_score}/100</strong>
-                    &nbsp;|&nbsp; <span style="font-style:italic;">{data_note}</span>
-                </div>
-            </div>""", unsafe_allow_html=True)
-            render_price_movement_section(
-                fd.get("symbol"),
-                company_name
-            )
-            
-            st.divider()
-            
-            # Key metrics row (FIXED UI - no overflow)
-            def small_metric(title, value):
-              st.markdown(f"""
-              <div style="
-                background:white;
-                padding:10px;
-                border-radius:10px;
-                border:1px solid #e0e7ef;
-                text-align:center;
-                height:70px;
-              ">
-                <div style="font-size:0.65rem;color:#5a7199;font-weight:600;">
-                  {title}
-                </div>
-                <div style="font-size:0.85rem;font-weight:700;color:#0B1D51;">
-                  {value}
-                </div>
-              </div>
-              """, unsafe_allow_html=True)
-                
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                small_metric("EPS", fmt(latest(eps_s), "LKR "))
-                small_metric("Dividend", fmt(latest(div_s), "LKR "))
-                small_metric("Market Price", fmt(latest(mp_s), "LKR "))
-            with col2:
-                small_metric("Book Value", fmt(latest(bv_s), "LKR "))
-                small_metric("Current Ratio", fmt(latest(cr_s)))
-                small_metric("Intrinsic Value", fmt(latest(iv_s), "LKR "))
-            with col3:
-                small_metric("Debt Ratio", fmt(latest(dr_s)))
-                small_metric("Margin of Safety", f"{latest(mos_s):.1%}" if latest(mos_s) is not None else "N/A")
-                small_metric("P/E Ratio", fmt(latest(pe_s)))
-
-            st.divider()
-
-            # Score + Criteria
-            sc_col, cr_col = st.columns([1, 3])
-            with sc_col:
-                render_score_card(total_score, score_type_label)
-            with cr_col:
-                st.markdown(f"**Criteria Breakdown - {investor_type}**")
-                render_criteria(criteria)
-
-            st.divider()
-
-            # Charts
-            ch1, ch2 = st.columns(2)
-            with ch1:
-                if eps_s: st.plotly_chart(line_chart({"EPS (LKR)": eps_s}, "Earnings Per Share Trend", "LKR"), use_container_width=True)
-            with ch2:
-                if rev_s:
-                    rev_m = {y: v/1e6 for y,v in rev_s.items()}
-                    st.plotly_chart(line_chart({"Revenue (LKR M)": rev_m}, "Revenue Trend", "LKR Millions"), use_container_width=True)
-
-            ch3, ch4 = st.columns(2)
-            with ch3:
-                if cr_s and dr_s:
-                    yrs = sorted(set(list(cr_s.keys()) + list(dr_s.keys())))
-                    fig = go.Figure()
-                    fig.add_trace(go.Bar(name="Current Ratio", x=yrs, y=[cr_s.get(y) for y in yrs], marker_color="#2563eb"))
-                    fig.add_trace(go.Bar(name="Debt Ratio",    x=yrs, y=[dr_s.get(y) for y in yrs], marker_color="#dc2626"))
-                    thresh = 2.0 if is_defensive else 1.5
-                    fig.add_hline(y=thresh, line_dash="dash", line_color="#16a34a", annotation_text=f"CR Min {thresh}")
-                    fig.update_layout(title=dict(text="Current Ratio vs Debt Ratio", font=dict(color="#0B1D51",size=13),x=0),
-                        barmode="group", paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-                        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2"),
-                        legend=dict(bgcolor="rgba(0,0,0,0)"), margin=dict(l=10,r=10,t=40,b=10), height=285)
-                    st.plotly_chart(fig, use_container_width=True)
-
-            with ch4:
-                if mp_s or iv_s:
-                    all_yrs = sorted(set(list(mp_s.keys()) + list(iv_s.keys())))
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(name="Market Price",    x=all_yrs, y=[mp_s.get(y) for y in all_yrs], mode="lines+markers", line=dict(color="#d97706",width=2.5)))
-                    fig.add_trace(go.Scatter(name="Intrinsic Value", x=all_yrs, y=[iv_s.get(y) for y in all_yrs], mode="lines+markers", line=dict(color="#16a34a",width=2.5,dash="dash")))
-                    fig.update_layout(title=dict(text="Market Price vs Intrinsic Value",font=dict(color="#0B1D51",size=13),x=0),
-                        paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-                        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2"),
-                        legend=dict(bgcolor="rgba(0,0,0,0)"), margin=dict(l=10,r=10,t=40,b=10), height=285)
-                    st.plotly_chart(fig, use_container_width=True)
-
-            ch5, ch6 = st.columns(2)
-            with ch5:
-                if div_s and eps_s:
-                    yrs = sorted(set(list(div_s.keys()) + list(eps_s.keys())))
-                    fig = go.Figure()
-                    fig.add_trace(go.Bar(name="Dividend/Share", x=yrs, y=[div_s.get(y,0) or 0 for y in yrs], marker_color="#9333ea"))
-                    fig.add_trace(go.Bar(name="EPS",            x=yrs, y=[eps_s.get(y,0) or 0 for y in yrs], marker_color="#2563eb"))
-                    fig.update_layout(title=dict(text="Dividend vs EPS",font=dict(color="#0B1D51",size=13),x=0),
-                        barmode="group", paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-                        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2"),
-                        legend=dict(bgcolor="rgba(0,0,0,0)"), margin=dict(l=10,r=10,t=40,b=10), height=285)
-                    st.plotly_chart(fig, use_container_width=True)
-
-            with ch6:
-                if rev_g or eps_g:
-                    all_yrs = sorted(set(list(rev_g.keys()) + list(eps_g.keys())))
-                    fig = go.Figure()
-                    if rev_g: fig.add_trace(go.Scatter(name="Revenue Growth YoY", x=all_yrs, y=[rev_g.get(y) for y in all_yrs], mode="lines+markers", line=dict(color="#0B1D51",width=2)))
-                    if eps_g: fig.add_trace(go.Scatter(name="EPS Growth YoY",     x=all_yrs, y=[eps_g.get(y) for y in all_yrs], mode="lines+markers", line=dict(color="#2563eb",width=2,dash="dot")))
-                    fig.add_hline(y=0, line_color="#dc2626", line_dash="dash")
-                    fig.update_layout(title=dict(text="Year-on-Year Growth Rates",font=dict(color="#0B1D51",size=13),x=0),
-                        paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-                        xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2", tickformat=".0%"),
-                        legend=dict(bgcolor="rgba(0,0,0,0)"), margin=dict(l=10,r=10,t=40,b=10), height=285)
-                    st.plotly_chart(fig, use_container_width=True)
-
-            # Raw data table
-            with st.expander("View Full Data Table"):
-                years = sorted(fd.get("years",[]), reverse=True)
-                rows = []
-                for y in years:
-                    rows.append({"Year":y, "EPS":eps_s.get(y), "Revenue":fmt_large(rev_s.get(y)),
-                        "Dividend/Share":div_s.get(y), "Market Price":mp_s.get(y),
-                        "Book Value/Share":bv_s.get(y), "Intrinsic Value":iv_s.get(y),
-                        "Margin of Safety":mos_s.get(y), "Current Ratio":cr_s.get(y),
-                        "Debt Ratio":dr_s.get(y), "P/E":pe_s.get(y), "P/B":pb_s.get(y)})
-                st.dataframe(pd.DataFrame(rows).set_index("Year"), use_container_width=True)
-
-    # ── Comparison ────────────────────────────────────────────────────────────
-    if len(selected) > 1:
-        st.divider()
-        st.markdown("## Side-by-Side Comparison")
-
-        # Score bar chart
-        if score_summary:
-            sc_colors = ["#16a34a" if s["Score"]>=75 else "#d97706" if s["Score"]>=50 else "#dc2626" for s in score_summary]
-            fig_sc = go.Figure(go.Bar(
-                x=[s["Company"] for s in score_summary],
-                y=[s["Score"]   for s in score_summary],
-                marker_color=sc_colors,
-                text=[f"{s['Score']}/100" for s in score_summary],
-                textposition="outside", textfont=dict(color="#0B1D51", size=13, family="Arial Black"),
-            ))
-            fig_sc.add_hline(y=75, line_dash="dash", line_color="#16a34a", annotation_text="Strong (75)")
-            fig_sc.add_hline(y=50, line_dash="dash", line_color="#d97706", annotation_text="Moderate (50)")
-            fig_sc.update_layout(
-                title=dict(text=f"Score Comparison — {investor_type}", font=dict(color="#0B1D51",size=14),x=0),
-                paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-                xaxis=dict(gridcolor="#e5eaf2"), yaxis=dict(gridcolor="#e5eaf2", range=[0,115]),
-                margin=dict(l=10,r=10,t=40,b=10), height=320)
-            st.plotly_chart(fig_sc, use_container_width=True)
-
-        # Metrics comparison table
-        rows = []
-        for name in selected:
-            fd = companies.get(name,{})
-            score = next((s["Score"] for s in score_summary if s["Company"]==name), "N/A")
-            rows.append({
-                "Company":          name,
-                "Sector":           fd.get("sector","—"),
-                f"{score_type_label}": f"{score}/100",
-                "EPS":              fmt(latest(get_series(fd,"income_statement","eps")), "LKR "),
-                "Revenue":          fmt_large(latest(get_series(fd,"income_statement","total_revenue"))),
-                "Dividend/Share":   fmt(latest(get_series(fd,"income_statement","dividend_per_share")), "LKR "),
-                "Book Value/Share": fmt(latest(get_series(fd,"market_metrics","bvps")), "LKR "),
-                "Current Ratio":    fmt(latest(get_series(fd,"ratios","current_ratio"))),
-                "Debt Ratio":       fmt(latest(get_series(fd,"ratios","debt_ratio"))),
-                "Market Price":     fmt(latest(get_series(fd,"market_metrics","market_price")), "LKR "),
-                "Intrinsic Value":  fmt(latest(get_series(fd,"graham_analysis","intrinsic_value")), "LKR "),
-                "Margin of Safety": f"{latest(get_series(fd,'graham_analysis','margin_of_safety')):.1%}" if latest(get_series(fd,"graham_analysis","margin_of_safety")) is not None else "N/A",
-                "P/E Ratio":        fmt(latest(get_series(fd,"market_metrics","pe_ratio"))),
-                "P/B Ratio":        fmt(latest(get_series(fd,"market_metrics","pb_ratio"))),
-            })
-        df_cmp = pd.DataFrame(rows).set_index("Company")
-        st.dataframe(df_cmp.T, use_container_width=True)
-
-        # Radar chart
-        st.markdown("### Comparative Radar")
-        def norm(val, lo, hi):
-            if val is None: return 0
-            return max(0, min(10, (val-lo)/(hi-lo)*10))
-
-        rlabels = ["Score/10","EPS","Current Ratio","Div/Share","Margin of Safety"]
-        fig_r = go.Figure()
-        for i, name in enumerate(selected):
-            fd = companies.get(name,{})
-            sc = next((s["Score"] for s in score_summary if s["Company"]==name), 0)
-            vals = [
-                sc/10,
-                norm(latest(get_series(fd,"income_statement","eps")), -5, 50),
-                norm(latest(get_series(fd,"ratios","current_ratio")), 0, 5),
-                norm(latest(get_series(fd,"income_statement","dividend_per_share")), 0, 20),
-                norm(latest(get_series(fd,"graham_analysis","margin_of_safety")), -1, 1),
-            ]
-            fig_r.add_trace(go.Scatterpolar(r=vals+[vals[0]], theta=rlabels+[rlabels[0]],
-                fill="toself", name=name, line=dict(color=C[i%len(C)]), opacity=0.7))
-        fig_r.update_layout(
-            polar=dict(bgcolor="#F8F9FB",
-                radialaxis=dict(visible=True, range=[0,10], gridcolor="#e5eaf2", color="#5a7199"),
-                angularaxis=dict(gridcolor="#e5eaf2", color="#0B1D51")),
-            paper_bgcolor="#ffffff", font=dict(color="#5a7199"),
-            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#0B1D51")), height=420)
-        st.plotly_chart(fig_r, use_container_width=True)
+    with st.expander("Settings"):
+        st.caption(f"Investor type: {profile.get('investor_type') or '—'}")
+        st.caption(f"Risk appetite: {profile.get('risk_appetite') or '—'}")
+        st.caption(f"Goal: {profile.get('investment_goal') or '—'}")
+        if st.button("Reset onboarding"):
+            reset_onboarding()
+            st.session_state.current_page = "Dashboard"
+            st.rerun()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# BROKER COMPARISON
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "Broker Comparison":
-    st.markdown("## Broker Comparison")
-    st.caption("Compare 13 CSE-registered stockbrokers on fees, minimum investment, platform, and research support.")
+# ── Route ──────────────────────────────────────────────────────────────────────
+current = st.session_state.current_page
 
-    df_b = pd.DataFrame(brokers)
-    def parse_min(val):
-        try: return float(str(val).replace(",","").replace(" ",""))
-        except: return 0.0
-    df_b["min_numeric"] = df_b["min_investment_raw"].apply(parse_min)
+if current == "Dashboard":
+    dashboard.render(data, companies, sectors, profile, go_to)
+elif current == "Getting Started":
+    getting_started.render(data, companies, sectors, brokers, profile)
+elif current == "Discover Companies":
+    discover.render(data, companies, sectors, profile, go_to)
+elif current == "Company Workspace":
+    workspace.render(data, companies, sectors, profile, go_to)
+elif current == "Portfolio":
+    portfolio.render(data, companies, sectors, profile, go_to)
+elif current == "Market Dashboard":
+    market_dashboard.render(data, companies, sectors, profile)
+elif current == "Learning Centre":
+    learning_centre.render(data, companies, sectors, profile)
 
-    fc1, fc2 = st.columns(2)
-    with fc1:
-        max_inv = int(df_b["min_numeric"].max()) or 1000000
-        dep_filter = st.slider("Maximum Minimum Investment (LKR)", 0, max_inv, max_inv, step=5000)
-    with fc2:
-        platforms = ["All"] + sorted(df_b["online_platform"].dropna().unique().tolist())
-        plat_filter = st.selectbox("Online Platform", platforms)
-
-    filtered = df_b[df_b["min_numeric"] <= dep_filter]
-    if plat_filter != "All":
-        filtered = filtered[filtered["online_platform"] == plat_filter]
-
-    st.markdown(f"**{len(filtered)} broker(s) match your filters.**")
-    st.divider()
-
-    # ── Card grid + detail panel ───────────────────────────────────────────────
-    if "selected_broker" not in st.session_state:
-        st.session_state.selected_broker = None
-
-    PER_PAGE = 9
-    total_pages = max(1, -(-len(filtered) // PER_PAGE))
-    if "broker_page" not in st.session_state:
-        st.session_state.broker_page = 1
-    st.session_state.broker_page = min(st.session_state.broker_page, total_pages)
-
-    grid_col, detail_col = st.columns([2, 1])
-
-    with grid_col:
-        start = (st.session_state.broker_page - 1) * PER_PAGE
-        page_rows = filtered.iloc[start:start + PER_PAGE].to_dict("records")
-
-        for row_start in range(0, len(page_rows), 3):
-            cols = st.columns(3)
-            for col, b in zip(cols, page_rows[row_start:row_start + 3]):
-                with col:
-                    logo_uri = logo_b64(b.get("logo"))
-                    avatar_html = (f'<img class="broker-avatar" src="{logo_uri}">' if logo_uri
-                                   else '<div class="broker-avatar" style="display:flex;align-items:center;justify-content:center;background:#0B1D51;color:white;font-weight:700;">'
-                                        f'{b["name"][0]}</div>')
-                    st.markdown(f"""
-                    <div class="broker-card">
-                        {avatar_html}
-                        <div class="broker-name">{b['name']}</div>
-                        <div class="broker-fee">{fmt(b.get('brokerage_fee_percent'), suffix='%')} Commission</div>
-                        <div class="broker-contact" style="font-size:0.60rem;">
-                            📞 {b.get('phone') or '—'}<br>
-                            ✉️ {b.get('email') or '—'}<br>
-                            🌐 {(b.get('website') or '—')[:28]}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    if st.button("View Details", key=f"view_{b['name']}", use_container_width=True):
-                        st.session_state.selected_broker = b["name"]
-                        st.rerun()
-
-        st.write("")
-        pg1, pg2, pg3 = st.columns([1, 2, 1])
-        with pg1:
-            if st.button("◀ Prev", disabled=st.session_state.broker_page <= 1, use_container_width=True):
-                st.session_state.broker_page -= 1
-                st.rerun()
-        with pg2:
-            st.markdown(f"<div style='text-align:center;color:#5a7199;padding-top:6px;'>Page {st.session_state.broker_page} of {total_pages}</div>", unsafe_allow_html=True)
-        with pg3:
-            if st.button("Next ▶", disabled=st.session_state.broker_page >= total_pages, use_container_width=True):
-                st.session_state.broker_page += 1
-                st.rerun()
-
-    with detail_col:
-        sel_name = st.session_state.selected_broker
-        sel = next((b for b in brokers if b["name"] == sel_name), None) if sel_name else None
-
-        if sel is None:
-            st.markdown("""
-            <div class="broker-detail-panel" style="text-align:center; color:#5a7199;">
-                <div style="font-size:2rem;"></div>
-                Click <strong>View Details</strong> on any broker card to see their full profile here.
-            </div>""", unsafe_allow_html=True)
-        else:
-            logo_uri = logo_b64(sel.get("logo"))
-            avatar_html = (f'<img class="broker-detail-avatar" src="{logo_uri}">' if logo_uri
-                           else '<div class="broker-detail-avatar" style="display:flex;align-items:center;justify-content:center;background:#0B1D51;color:white;font-weight:700;">'
-                                f'{sel["name"][0]}</div>')
-            st.markdown(f"""
-            <div class="broker-detail-panel">
-                <div style="overflow:auto;">
-                    {avatar_html}
-                    <div>
-                        <div style="font-weight:700;color:#0B1D51;font-size:1rem;">{sel['name']}</div>
-                        <span class="broker-badge">CSE Registered Broker</span>
-                    </div>
-                </div>
-                <div style="margin-top:14px; font-size:0.82rem; color:#5a7199; line-height:1.9;">
-                    📞 {sel.get('phone') or '—'}<br>
-                    ✉️ {sel.get('email') or '—'}<br>
-                    🌐 {sel.get('website') or '—'}<br>
-                    📍 {sel.get('address') or '—'}
-                </div>
-                <hr style="border-color:#e0e7ef;">
-                <div style="font-weight:700;color:#0B1D51;font-size:0.88rem;margin-bottom:6px;">About the Broker</div>
-                <div style="font-size:0.82rem;color:#5a7199;line-height:1.6;">{sel.get('about') or 'No description available.'}</div>
-                <hr style="border-color:#e0e7ef;">
-                <div style="font-weight:700;color:#0B1D51;font-size:0.88rem;margin-bottom:6px;">Commission &amp; Platform</div>
-                <div style="font-size:0.82rem;color:#5a7199;line-height:1.9;">
-                    Brokerage Fee: <strong style="color:#0B1D51;">{fmt(sel.get('brokerage_fee_percent'), suffix='%')}</strong><br>
-                    Online Platform: <strong style="color:#0B1D51;">{sel.get('online_platform') or '—'}</strong><br>
-                    Research Support: <strong style="color:#0B1D51;">{sel.get('research_support') or '—'}</strong>
-                </div>
-                <div style="font-weight:700;color:#0B1D51;font-size:0.88rem;margin-top:14px;">Minimum Investment</div>
-                <div class="broker-min-box">{sel.get('min_investment_raw') or 'N/A'}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("✕ Close", use_container_width=True):
-                st.session_state.selected_broker = None
-                st.rerun()
-
-    st.divider()
-
-    # ── Analytics charts (fee & minimum investment comparison) ────────────────
-    st.markdown("### Fee &amp; Investment Analytics")
-    ch1, ch2 = st.columns(2)
-    with ch1:
-        st.markdown("#### Brokerage Fee (%)")
-        df_fee = filtered.dropna(subset=["brokerage_fee_percent"]).sort_values("brokerage_fee_percent")
-        min_fee = df_fee["brokerage_fee_percent"].min()
-        colors_fee = ["#16a34a" if v==min_fee else "#0B1D51" for v in df_fee["brokerage_fee_percent"]]
-        fig = go.Figure(go.Bar(x=df_fee["brokerage_fee_percent"], y=df_fee["name"], orientation="h",
-            marker_color=colors_fee, text=[f"{v}%" for v in df_fee["brokerage_fee_percent"]],
-            textposition="outside", textfont=dict(color="#5a7199",size=10)))
-        fig.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-            xaxis=dict(gridcolor="#e5eaf2",title="Fee %"), yaxis=dict(gridcolor="#e5eaf2"),
-            margin=dict(l=10,r=10,t=20,b=10), height=max(300,len(df_fee)*40))
-        st.plotly_chart(fig, use_container_width=True)
-        st.caption("Green = lowest fee.")
-    with ch2:
-        st.markdown("#### Minimum Investment (LKR)")
-        df_inv = filtered[filtered["min_numeric"]>0].sort_values("min_numeric")
-        if not df_inv.empty:
-            fig = go.Figure(go.Bar(x=df_inv["min_numeric"], y=df_inv["name"], orientation="h",
-                marker_color="#2563eb", text=[f"LKR {v:,.0f}" for v in df_inv["min_numeric"]],
-                textposition="outside", textfont=dict(color="#5a7199",size=10)))
-            fig.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#F8F9FB", font=dict(color="#5a7199"),
-                xaxis=dict(gridcolor="#e5eaf2",title="LKR"), yaxis=dict(gridcolor="#e5eaf2"),
-                margin=dict(l=10,r=10,t=20,b=10), height=max(300,len(df_inv)*40))
-            st.plotly_chart(fig, use_container_width=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SECTOR ANALYTICS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "Sector Analytics":
-    st.markdown("## Sector Analytics")
-    st.caption("Macro-level financial overview across 21 CSE sectors.")
-
-    sector_rows = []
-    for sec_name, sec_info in sectors.items():
-        sec_cos = sec_info.get("companies",[])
-        eps_l,rev_l,dr_l,cr_l,mos_l = [],[],[],[],[]
-        for cname in sec_cos:
-            fd = companies.get(cname,{})
-            if not fd: continue
-            for lst,keys in [(eps_l,("income_statement","eps")),(rev_l,("income_statement","total_revenue")),
-                             (dr_l,("ratios","debt_ratio")),(cr_l,("ratios","current_ratio")),
-                             (mos_l,("graham_analysis","margin_of_safety"))]:
-                v = latest(get_series(fd,*keys))
-                if v is not None: lst.append(v)
-        def avg(lst): return round(sum(lst)/len(lst),3) if lst else None
-        sector_rows.append({"Sector":sec_name,"Companies":len(sec_cos),
-            "Avg EPS (LKR)":avg(eps_l),"Avg Revenue (LKR M)":round(avg(rev_l)/1e6,1) if avg(rev_l) else None,
-            "Avg Debt Ratio":avg(dr_l),"Avg Current Ratio":avg(cr_l),"Avg Margin of Safety":avg(mos_l)})
-
-    df_sec = pd.DataFrame(sector_rows).dropna(subset=["Avg EPS (LKR)"]).sort_values("Avg EPS (LKR)",ascending=False)
-    sel_secs = st.multiselect("Filter to specific sectors (leave blank for all)", df_sec["Sector"].tolist())
-    if sel_secs: df_sec = df_sec[df_sec["Sector"].isin(sel_secs)]
-
-    tab1,tab2,tab3,tab4,tab5 = st.tabs(["EPS by Sector","Revenue","Debt Levels","Liquidity","Full Table"])
-
-    with tab1:
-        df_p = df_sec.sort_values("Avg EPS (LKR)")
-        colors = ["#dc2626" if v<0 else "#0B1D51" for v in df_p["Avg EPS (LKR)"]]
-        fig = go.Figure(go.Bar(x=df_p["Avg EPS (LKR)"], y=df_p["Sector"], orientation="h", marker_color=colors,
-            text=[f"LKR {v:.2f}" for v in df_p["Avg EPS (LKR)"]], textposition="outside", textfont=dict(color="#5a7199",size=9)))
-        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#F8F9FB",font=dict(color="#5a7199"),
-            xaxis=dict(gridcolor="#e5eaf2",title="Avg EPS (LKR)"),yaxis=dict(gridcolor="#e5eaf2"),
-            height=max(350,len(df_p)*30),margin=dict(l=10,r=10,t=20,b=10))
-        st.plotly_chart(fig,use_container_width=True)
-
-    with tab2:
-        df_p = df_sec.dropna(subset=["Avg Revenue (LKR M)"]).sort_values("Avg Revenue (LKR M)",ascending=False)
-        fig = go.Figure(go.Bar(x=df_p["Sector"],y=df_p["Avg Revenue (LKR M)"],marker_color="#2563eb",
-            text=[f"LKR {v:.1f}M" for v in df_p["Avg Revenue (LKR M)"]],textposition="outside",textfont=dict(color="#5a7199",size=9)))
-        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#F8F9FB",font=dict(color="#5a7199"),
-            xaxis=dict(gridcolor="#e5eaf2",tickangle=-35),yaxis=dict(gridcolor="#e5eaf2"),
-            height=400,margin=dict(l=10,r=10,t=20,b=80))
-        st.plotly_chart(fig,use_container_width=True)
-
-    with tab3:
-        df_p = df_sec.dropna(subset=["Avg Debt Ratio"]).sort_values("Avg Debt Ratio")
-        colors = ["#16a34a" if v<0.4 else "#d97706" if v<0.6 else "#dc2626" for v in df_p["Avg Debt Ratio"]]
-        fig = go.Figure(go.Bar(x=df_p["Avg Debt Ratio"],y=df_p["Sector"],orientation="h",marker_color=colors,
-            text=[f"{v:.3f}" for v in df_p["Avg Debt Ratio"]],textposition="outside",textfont=dict(color="#5a7199",size=9)))
-        fig.add_vline(x=0.4,line_dash="dash",line_color="#16a34a",annotation_text="Safe < 0.4")
-        fig.add_vline(x=0.6,line_dash="dash",line_color="#dc2626",annotation_text="Risky > 0.6")
-        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#F8F9FB",font=dict(color="#5a7199"),
-            xaxis=dict(gridcolor="#e5eaf2"),yaxis=dict(gridcolor="#e5eaf2"),
-            height=max(350,len(df_p)*30),margin=dict(l=10,r=10,t=20,b=10))
-        st.plotly_chart(fig,use_container_width=True)
-
-    with tab4:
-        df_p = df_sec.dropna(subset=["Avg Current Ratio"]).sort_values("Avg Current Ratio",ascending=False)
-        colors = ["#16a34a" if v>=1.5 else "#d97706" if v>=1 else "#dc2626" for v in df_p["Avg Current Ratio"]]
-        fig = go.Figure(go.Bar(x=df_p["Sector"],y=df_p["Avg Current Ratio"],marker_color=colors,
-            text=[f"{v:.2f}" for v in df_p["Avg Current Ratio"]],textposition="outside",textfont=dict(color="#5a7199",size=9)))
-        fig.add_hline(y=1.5,line_dash="dash",line_color="#0B1D51",annotation_text="Target 1.5")
-        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#F8F9FB",font=dict(color="#5a7199"),
-            xaxis=dict(gridcolor="#e5eaf2",tickangle=-35),yaxis=dict(gridcolor="#e5eaf2"),
-            height=400,margin=dict(l=10,r=10,t=20,b=80))
-        st.plotly_chart(fig,use_container_width=True)
-
-    with tab5:
-        st.dataframe(df_sec.reset_index(drop=True),use_container_width=True)
-# ══════════════════════════════════════════════════════════════════════════════
-# Market Intel
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "Market Intelligence":
-    render_market_intelligence(companies)
-# ══════════════════════════════════════════════════════════════════════════════
-# EDUCATIONAL PORTAL
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "Educational Portal":
-    st.markdown("## Educational Portal")
-    st.caption("Understand the key metrics behind Graham-style value investing.")
-
-    inv_tab1, inv_tab2, inv_tab3 = st.tabs(["Defensive Investor Criteria", "Enterprising Investor Criteria", "Key Metrics Explained"])
-
-    with inv_tab1:
-        st.markdown("### Defensive Investor — 7 Criteria (100 Points Total)")
-        st.caption("Uses 10 years of data. Suited for risk-averse, long-term investors.")
-        criteria_def = [
-            ("Earnings Consistency","20 pts","Positive EPS for all of the last 10 years with no deficits."),
-            ("Dividend History","15 pts","Uninterrupted dividend payments for at least 10 years."),
-            ("Financial Health — Current Ratio >= 2.0","15 pts","Current ratio of at least 2.0 to ensure strong short-term liquidity."),
-            ("Low Debt — Debt Ratio < 0.5","10 pts","Low debt-to-asset ratio to ensure financial stability during downturns."),
-            ("Valuation Limits (P/E)","15 pts","Not more than 20x last 12-month earnings or 25x 7-year average earnings."),
-            ("Margin of Safety >= 33%","15 pts","Buy at a price significantly below intrinsic value to protect against error and market swings."),
-            ("Company Quality","10 pts","Positive book value and consistent positive revenue — large, established company."),
-        ]
-        for name, pts, desc in criteria_def:
-            st.markdown(f"""
-            <div style="display:flex;align-items:flex-start;gap:14px;padding:10px 0;border-bottom:1px solid #f1f5f9;">
-                <div style="flex:1;">
-                    <span style="font-weight:700;color:#0B1D51;font-size:0.9rem;">{name}</span>
-                    <span style="color:#5a7199;font-size:0.82rem;"> — {desc}</span>
-                </div>
-                <div style="color:#2563eb;font-weight:700;font-size:0.85rem;white-space:nowrap;">{pts}</div>
-            </div>""", unsafe_allow_html=True)
-
-    with inv_tab2:
-        st.markdown("### Enterprising Investor — 5 Criteria (100 Points Total)")
-        st.caption("Uses 5 years of data. Suited for active investors willing to take calculated risks.")
-        criteria_ent = [
-            ("Financial Strength","25 pts","Current ratio > 1.5 and long-term debt < 110% of working capital."),
-            ("Earnings Stability","20 pts","Positive EPS for each of the last 5 years."),
-            ("Dividend Record","15 pts","Company pays some level of dividends — signals shareholder-friendly management."),
-            ("Valuation (P/E <= 15, P/B <= 1.5)","25 pts","P/E below 10–15 and P/B below 1.2–1.5 to signal undervaluation."),
-            ("Earnings Growth","15 pts","Demonstrated EPS growth over the past 5 years."),
-        ]
-        for name, pts, desc in criteria_ent:
-            st.markdown(f"""
-            <div style="display:flex;align-items:flex-start;gap:14px;padding:10px 0;border-bottom:1px solid #f1f5f9;">
-                <div style="flex:1;">
-                    <span style="font-weight:700;color:#0B1D51;font-size:0.9rem;">{name}</span>
-                    <span style="color:#5a7199;font-size:0.82rem;"> — {desc}</span>
-                </div>
-                <div style="color:#2563eb;font-weight:700;font-size:0.85rem;white-space:nowrap;">{pts}</div>
-            </div>""", unsafe_allow_html=True)
-
-    with inv_tab3:
-        topics = [
-            ("EPS — Earnings Per Share","EPS = Net Profit / Shares Outstanding",
-             "Measures profit per share. Graham required 10 years of uninterrupted positive EPS for defensive investors.",
-             [("EPS > 5","Strong","tag-good"),("EPS > 0","Positive","tag-ok"),("EPS < 0","Avoid","tag-bad")]),
-            ("Book Value Per Share","BVPS = (Total Assets - Intangibles - Liabilities) / Shares Outstanding",
-             "Net asset value per share. Graham preferred stocks below 1.5x book value.",
-             [("P/B < 1.5","Undervalued","tag-good"),("P/B 1.5-3","Fair","tag-ok"),("P/B > 3","Overvalued","tag-bad")]),
-            ("Margin of Safety","MoS = (Intrinsic Value - Market Price) / Intrinsic Value",
-             "Graham's core principle: always buy below intrinsic value. Recommended at least 33%.",
-             [("MoS > 33%","Strong safety","tag-good"),("MoS 0-33%","Some safety","tag-ok"),("MoS < 0%","Overvalued","tag-bad")]),
-            ("Current Ratio","Current Ratio = Current Assets / Current Liabilities",
-             "Graham required a minimum of 2.0 for defensive investors and 1.5 for enterprising investors.",
-             [("CR >= 2.0","Defensive pass","tag-good"),("CR >= 1.5","Enterprising pass","tag-ok"),("CR < 1.0","Fail","tag-bad")]),
-            ("Debt Ratio","Debt Ratio = Total Debt / Total Assets",
-             "Lower is safer. Graham warned against excessive leverage relative to equity.",
-             [("DR < 0.4","Low leverage","tag-good"),("DR 0.4-0.6","Moderate","tag-ok"),("DR > 0.6","High risk","tag-bad")]),
-            ("Intrinsic Value","IV = sqrt(22.5 x EPS x BVPS)",
-             "Graham's formula to estimate true worth. Compare to market price to find undervalued stocks.",
-             [("Price < IV","Potential buy","tag-good"),("Price ~ IV","Fair","tag-ok"),("Price > IV","Overvalued","tag-bad")]),
-        ]
-        for title, formula, tip, thresholds in topics:
-            with st.expander(title):
-                l, r = st.columns([3,1])
-                with l:
-                    st.code(formula, language="text")
-                    st.info(f"Graham Principle: {tip}")
-                with r:
-                    st.markdown("**Thresholds**")
-                    for label, verdict, cls in thresholds:
-                        st.markdown(f'<span class="{cls}">{label}: {verdict}</span><br>', unsafe_allow_html=True)
-
-# ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown('<div class="footer">Investor 360 &nbsp;|&nbsp; Colombo Stock Exchange &nbsp;|&nbsp; Data: 2016–2025</div>', unsafe_allow_html=True)

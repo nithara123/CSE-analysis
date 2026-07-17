@@ -6,13 +6,8 @@ Colombo Stock Exchange (CSE) listed companies, using CSE's public
 (unofficial, reverse-engineered) web API — the same one that powers
 charts on cse.lk.
 
-Drop this file next to your Investor 360 app.py and import it:
-
-    from cse_price_chart import render_price_movement_section
-
-Then call it inside your per-company expander, above the financials:
-
-    render_price_movement_section(fd.get("symbol"), company_name)
+UNCHANGED from the original Investor 360 project - reused as-is by
+pages/workspace.py in the redesigned app.
 
 NOTE: This relies on an UNOFFICIAL API (no published docs from CSE).
 Endpoints/field names may change without notice. If it breaks, the

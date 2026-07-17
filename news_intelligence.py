@@ -2,19 +2,16 @@
 news_intelligence.py
 Market Intelligence module for Investor 360.
 
+UNCHANGED from the original Investor 360 project - reused as-is by
+pages/market_dashboard.py (macro + announcements) and pages/workspace.py
+(per-company news feed) in the redesigned app.
+
 Pulls headlines from free public RSS feeds (Sri Lankan business press + major
 international outlets), classifies them by CSE sector, tags mentioned listed
 companies, scores a rough sentiment, and renders an interactive Streamlit page.
 Also includes a Macro & Rates dashboard (inflation, interest rates, GDP growth,
 unemployment, exchange rates) sourced from the free World Bank Open Data API,
 with a world map, country comparison, and Sri Lanka historical trends.
-
-Drop this file next to app.py and cse_price_chart.py, then:
-
-    from news_intelligence import render_market_intelligence
-    ...
-    elif page == "Market Intelligence":
-        render_market_intelligence(companies)
 
 Requires: feedparser, requests, plotly  ->  pip install feedparser requests plotly
 """
@@ -29,9 +26,6 @@ import streamlit as st
 import plotly.graph_objects as go
 
 # ── RSS SOURCES ───────────────────────────────────────────────────────────────
-# Every feed below is a free, publicly documented RSS endpoint (no API key,
-# no scraping). If a feed ever goes down it is simply skipped — the page
-# keeps working with whatever sources respond.
 SRI_LANKA_FEEDS = {
     "Daily FT":              "https://www.ft.lk/rss",
     "EconomyNext":           "https://economynext.com/feed",
@@ -44,9 +38,6 @@ GLOBAL_FEEDS = {
 }
 
 # ── SECTOR KEYWORD MAP ───────────────────────────────────────────────────────
-# Maps a CSE-relevant sector label to a list of keywords/company names that
-# indicate an article belongs to it. Matching is case-insensitive substring
-# matching, so keep entries lower-case.
 SECTOR_KEYWORDS = {
     "Banking": ["bank", "commercial bank", "sampath", "hnb", "hatton national",
                 "dfcc", "ndb", "boc", "people's bank", "seylan", "pan asia",
@@ -109,8 +100,6 @@ TIME_WINDOWS = {
 }
 
 # ── MACRO DATA CONFIG (World Bank Open Data — free, no API key) ─────────────
-# Sri Lanka plus its key trading/investment partners and the world's major
-# economies, so the world map has good coverage without hammering the API.
 MACRO_COUNTRIES = {
     "Sri Lanka": "LKA", "India": "IND", "China": "CHN", "United States": "USA",
     "United Kingdom": "GBR", "Japan": "JPN", "Singapore": "SGP", "Germany": "DEU",
@@ -124,9 +113,6 @@ MACRO_COUNTRIES = {
     "Mexico": "MEX", "Argentina": "ARG", "New Zealand": "NZL",
 }
 
-# label -> (World Bank indicator code, unit suffix, whether "higher" is bad)
-# higher_is_bad: True = red at high values, False = green at high values,
-# None = neutral (context-dependent, no good/bad color coding)
 MACRO_INDICATORS = {
     "Inflation Rate (CPI, % YoY)":     {"code": "FP.CPI.TOTL.ZG",  "suffix": "%", "higher_is_bad": True},
     "Lending Interest Rate (%)":       {"code": "FR.INR.LEND",     "suffix": "%", "higher_is_bad": None},
