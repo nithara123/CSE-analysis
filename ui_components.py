@@ -246,21 +246,21 @@ def render_comparison_snapshot(company_name, ai_result, fd, is_winner=False):
     border = "border:2px solid #14B8A6;" if is_winner else "border:1px solid #EAEDF7;"
     winner_badge = '<div style="position:absolute;top:-10px;right:14px;background:#14B8A6;color:white;font-size:0.68rem;font-weight:700;padding:3px 10px;border-radius:999px;">TOP PICK</div>' if is_winner else ""
 
-    st.markdown(f"""
-    <div class="section-card" style="{border}position:relative;">
-        {winner_badge}
-        <div style="font-weight:700;color:#15172E;font-size:1rem;font-family:'Sora',sans-serif;">{company_name}</div>
-        <div style="color:#8B93AD;font-size:0.78rem;margin:2px 0 12px 0;">{fd.get('sector','—')}</div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:0.85rem;">
-            <div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Overall Score</span><strong>{ai_result['score']:.0f}/100</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Financial Health</span><strong>{financial_health}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Valuation</span><strong>{fmt(latest(get_series(fd,'graham_analysis','margin_of_safety')), suffix='', dec=2)}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Growth (EPS YoY)</span><strong>{growth}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Risk</span><strong>{ai_result['risk_rating']}</strong></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    html = (
+        f'<div class="section-card" style="{border}position:relative;">'
+        f'{winner_badge}'
+        f'<div style="font-weight:700;color:#15172E;font-size:1rem;font-family:\'Sora\',sans-serif;">{company_name}</div>'
+        f'<div style="color:#8B93AD;font-size:0.78rem;margin:2px 0 12px 0;">{fd.get("sector","—")}</div>'
+        f'<div style="display:flex;flex-direction:column;gap:8px;font-size:0.85rem;">'
+        f'<div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Overall Score</span><strong>{ai_result["score"]:.0f}/100</strong></div>'
+        f'<div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Financial Health</span><strong>{financial_health}</strong></div>'
+        f'<div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Valuation</span><strong>{fmt(latest(get_series(fd,"graham_analysis","margin_of_safety")), suffix="", dec=2)}</strong></div>'
+        f'<div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Growth (EPS YoY)</span><strong>{growth}</strong></div>'
+        f'<div style="display:flex;justify-content:space-between;"><span style="color:#8B93AD;">Risk</span><strong>{ai_result["risk_rating"]}</strong></div>'
+        f'</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 def fd_debt_ok(fd):
     from graham_engine import get_series, latest
