@@ -160,12 +160,17 @@ NAV_PAGES = [
     "Company Workspace", "Portfolio", "Market Dashboard", "Learning Centre",
 ]
 
-if "current_page" not in st.session_state:
-    st.session_state.current_page = st.session_state.pop("pending_nav", "Dashboard")
+if "nav_radio" not in st.session_state:
+    st.session_state.nav_radio = st.session_state.pop("pending_nav", "Dashboard")
 
 
 def go_to(page_name):
-    st.session_state.current_page = page_name
+    # go_to() never touches "nav_radio" directly (that would be modifying a
+    # widget's key after it's already been drawn this run, which Streamlit
+    # forbids and is what crashed the app last time). Instead it leaves a
+    # one-time note for the sidebar to apply, right before it (re)creates
+    # the radio widget on the next run.
+    st.session_state["pending_nav_override"] = page_name
     st.rerun()
 
 
@@ -173,31 +178,18 @@ with st.sidebar:
     st.markdown("## Investor 360")
     st.markdown("*Colombo Stock Exchange Analytics*")
     st.divider()
-    # Two different session_state keys are involved here on purpose:
-    #   - "current_page": a plain variable, not tied to any widget. go_to()
-    #     (called from buttons all over the app, e.g. "Getting Started
-    #     Guide") writes to THIS one, and it's always safe to write to at
-    #     any point in the script.
-    #   - "nav_radio": the radio widget's own key. Streamlit will raise a
-    #     StreamlitAPIException if you write to a widget's key AFTER that
-    #     widget has already been drawn in the same script run - which is
-    #     exactly what happened when current_page and the widget key were
-    #     the same thing (go_to() runs deep inside a page, i.e. after the
-    #     sidebar has already rendered this run).
-    # The fix: sync nav_radio FROM current_page right here, immediately
-    # before the widget is created - never after. That's the one point in
-    # the script where it's legal to set it, and it's exactly what makes a
-    # go_to() call from a button actually change what the radio shows.
-    if st.session_state.get("nav_radio") != st.session_state.current_page:
-        st.session_state.nav_radio = st.session_state.current_page
+    # If a button called go_to() on the previous run, apply it to the radio
+    # NOW - before the widget below is created - which is the one point
+    # where changing a widget's value is actually legal. Once applied, the
+    # note is consumed (popped) so it can never fight with a genuine click
+    # on the radio itself on a later run.
+    if "pending_nav_override" in st.session_state:
+        st.session_state.nav_radio = st.session_state.pop("pending_nav_override")
 
-    page = st.radio(
+    st.radio(
         "", NAV_PAGES, label_visibility="collapsed",
         key="nav_radio",
     )
-    if page != st.session_state.current_page:
-        st.session_state.current_page = page
-        st.rerun()
 
     st.divider()
     st.markdown(f"""
@@ -215,12 +207,16 @@ with st.sidebar:
         st.caption(f"Goal: {profile.get('investment_goal') or '—'}")
         if st.button("Reset onboarding"):
             reset_onboarding()
-            st.session_state.current_page = "Dashboard"
-            st.rerun()
+            # Reuses go_to()'s safe pending-override pattern rather than
+            # setting nav_radio directly - this button lives inside the
+            # sidebar, after the radio widget above has already been drawn
+            # this run, so a direct write here would hit the same
+            # "modify after instantiated" error go_to() is designed to avoid.
+            go_to("Dashboard")
 
 
 # ── Route ──────────────────────────────────────────────────────────────────────
-current = st.session_state.current_page
+current = st.session_state.nav_radio
 
 if current == "Dashboard":
     dashboard.render(data, companies, sectors, profile, go_to)
