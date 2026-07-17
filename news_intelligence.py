@@ -30,6 +30,10 @@ SRI_LANKA_FEEDS = {
     "Daily FT":              "https://www.ft.lk/rss",
     "EconomyNext":           "https://economynext.com/feed",
     "Lanka Business Online": "https://www.lankabusinessonline.com/feed",
+    # WordPress sites publish a feed at /feed/ by convention. fetch_feed()
+    # already fails silently on a dead/wrong URL (see its try/except below),
+    # so a wrong guess here just means one fewer source, not a crash.
+    "Business News LK":      "https://businessnews.lk/feed/",
 }
 
 GLOBAL_FEEDS = {
