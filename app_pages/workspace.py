@@ -20,6 +20,7 @@ from ui_components import (
     render_ai_score_card, render_ai_components_breakdown,
 )
 from metric_info import render_metric_info, METRICS
+from investor_profile import resolve_investor_type
 from portfolio_store import load_portfolio, add_company, remove_company
 from cse_price_chart import render_price_movement_section, fetch_best_daily_price_history
 from macro_signals import estimate_macro_outlook
@@ -122,7 +123,7 @@ def render(data, companies, sectors, profile, go_to):
         st.error("No data found for this company.")
         return
 
-    investor_type = "defensive" if available_years(fd) >= 9 else "enterprising"
+    investor_type = resolve_investor_type(fd)
     if investor_type == "defensive":
         graham_total, criteria = score_defensive(fd)
     else:
