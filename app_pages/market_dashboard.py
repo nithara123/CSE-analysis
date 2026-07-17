@@ -13,12 +13,15 @@ import plotly.graph_objects as go
 
 from graham_engine import get_series, latest, score_defensive, available_years
 from ai_engine import compute_ai_recommendation
+from macro_signals import fetch_live_usd_lkr
 from news_intelligence import render_market_intelligence
 
 
 def render(data, companies, sectors, profile):
     st.markdown("## Market Dashboard")
     st.caption("Market-wide announcements, Sri Lankan macroeconomic indicators, and sector-level context.")
+
+    _render_live_fx_strip()
 
     tab_news, tab_sectors = st.tabs(["Announcements & Macro & Rates", "Sector Profiles"])
 
@@ -27,6 +30,23 @@ def render(data, companies, sectors, profile):
 
     with tab_sectors:
         _render_sector_profiles(companies, sectors)
+
+
+def _render_live_fx_strip():
+    rate, as_of = fetch_live_usd_lkr()
+    if rate is None:
+        return
+    st.markdown(f"""
+    <div class="section-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 22px;margin-bottom:16px;">
+        <div>
+            <span style="font-weight:800;color:#15172E;font-size:1.1rem;">USD/LKR: {rate:,.2f}</span>
+            <span style="color:#8B93AD;font-size:0.78rem;margin-left:10px;">live market rate, updates every 30 min</span>
+        </div>
+        <div style="color:#8B93AD;font-size:0.72rem;">
+            Not CBSL's official indicative rate (CBSL doesn't publish a public API) - for that,
+            see <a href="https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates" target="_blank">cbsl.gov.lk</a> directly.
+        </div>
+    </div>""", unsafe_allow_html=True)
 
 
 def _render_sector_profiles(companies, sectors):
