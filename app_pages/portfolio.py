@@ -84,7 +84,11 @@ def render(data, companies, sectors, profile, go_to):
         cols = st.columns(len(compared))
         for col, (name, fd, ai) in zip(cols, compared):
             with col:
-                render_comparison_snapshot(name, ai, fd, is_winner=(name == winner_name))
+                try:
+                    render_comparison_snapshot(name, ai, fd, is_winner=(name == winner_name))
+                except Exception as e:
+                    st.error(f"Couldn't build a comparison card for **{name}** ({e}). "
+                             "The other companies below are unaffected.")
 
         winner_ai = next(ai for n, fd, ai in compared if n == winner_name)
         st.markdown(f"""
